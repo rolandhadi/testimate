@@ -376,6 +376,7 @@ I build automation frameworks and estimation models for enterprise software deli
 Connect with me:
 - GitHub: [rolandhadi](https://github.com/rolandhadi)
 - LinkedIn: [linkedin.com/in/rolandhadi](https://www.linkedin.com/in/rolandhadi/)
+- Live Demo: [rolandhadi.github.io/testimate](https://rolandhadi.github.io/testimate/)     
 
 If Testimate saves you time or helps you win a pitch, a star on the repo is the best thank-you.
 
