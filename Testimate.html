@@ -1,0 +1,2176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testimate - Test Automation Effort Estimator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+  :root {
+    --primary: #1e3a5f;
+    --primary-light: #305496;
+    --accent: #4a90d9;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --border: #e1e5ea;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --success: #16a34a;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --fill-simple: #e2efda;
+    --fill-medium: #fff2cc;
+    --fill-complex: #fce4d6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.4;
+  }
+  header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white; padding: 18px 28px; display: flex; justify-content: space-between;
+    align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    position: sticky; top: 0; z-index: 10; flex-wrap: wrap; gap: 10px;
+  }
+  .branding h1 { margin: 0; font-size: 26px; letter-spacing: -0.5px; }
+  .branding .subtitle { opacity: 0.82; font-size: 13px; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button, .btn {
+    cursor: pointer; border: 0; background: white; color: var(--primary);
+    padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px;
+    transition: transform 0.08s, box-shadow 0.12s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  button:hover, .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
+  button.small { padding: 4px 8px; font-size: 12px; }
+  button.ghost { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); }
+  button.ghost:hover { background: rgba(255,255,255,0.12); }
+  button.danger { background: #fee2e2; color: var(--danger); }
+  button.primary-cta { background: var(--accent); color: white; }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  section.card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  }
+  section.card h2 {
+    margin: 0 0 14px 0; font-size: 17px; font-weight: 700; color: var(--primary);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  details.card summary {
+    cursor: pointer; list-style: none; font-size: 17px; font-weight: 700; color: var(--primary);
+    display: flex; align-items: center; gap: 8px;
+  }
+  details.card summary::-webkit-details-marker { display: none; }
+  details.card summary::before {
+    content: '▸'; transition: transform 0.15s; display: inline-block; width: 14px;
+  }
+  details.card[open] summary::before { transform: rotate(90deg); }
+  details.card[open] summary { margin-bottom: 14px; }
+  .config-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  .config-grid label {
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;
+    min-height: 66px;
+    font-size: 12px; color: var(--text-muted); font-weight: 600;
+  }
+  .config-grid input[type=text], .config-grid input[type=number] {
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px;
+    font-size: 14px; color: var(--text); height: 34px;
+  }
+  .config-grid input[type=checkbox] { width: 18px; height: 18px; }
+  .checkbox-label {
+    flex-direction: row !important; align-items: center; gap: 8px !important;
+  }
+  .config-grid input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td {
+    padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: #f8fafc; color: var(--text-muted); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.03em; font-weight: 700;
+  }
+  td input, td select {
+    width: 100%; padding: 4px 6px; border: 1px solid transparent; background: transparent;
+    font-size: 13px; border-radius: 3px; color: var(--text);
+  }
+  td input:hover, td select:hover { border-color: var(--border); background: white; }
+  td input:focus, td select:focus {
+    outline: 2px solid var(--accent); outline-offset: -1px; background: white;
+  }
+  td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+  td.numeric input { text-align: right; }
+  tfoot th, tfoot td {
+    background: #f1f5f9; font-weight: 700; color: var(--primary);
+  }
+  .complexity-tag {
+    display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px;
+    font-weight: 700; letter-spacing: 0.02em;
+  }
+  .tag-simple { background: var(--fill-simple); color: #1c6b2f; }
+  .tag-medium { background: var(--fill-medium); color: #7a5d00; }
+  .tag-complex { background: var(--fill-complex); color: #9d3010; }
+  select.complexity-select {
+    padding: 3px 6px; border-radius: 10px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.02em; border: 1px solid transparent; cursor: pointer;
+    min-width: 110px; width: 100%;
+  }
+  select.complexity-select.cx-simple { background: var(--fill-simple); color: #1c6b2f; }
+  select.complexity-select.cx-medium { background: var(--fill-medium); color: #7a5d00; }
+  select.complexity-select.cx-complex { background: var(--fill-complex); color: #9d3010; }
+  select.complexity-select.cx-override { border: 1.5px solid currentColor; }
+  .type-tag {
+    display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px;
+    font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .tag-fixed { background: #fde68a; color: #7a5d00; }
+  .tag-variable { background: #bfdbfe; color: #1e3a5f; }
+  .result-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;
+  }
+  .result-card {
+    background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; text-align: center;
+  }
+  .result-card.primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white;
+    border: 0;
+  }
+  .result-card.pert {
+    background: #fff7ed; border-color: #fed7aa;
+  }
+  .result-card .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    opacity: 0.75; font-weight: 600; margin-bottom: 4px;
+  }
+  .result-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .gantt-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; max-height: 70vh; }
+  .gantt {
+    border-collapse: separate; border-spacing: 0; font-size: 11px; min-width: max-content;
+  }
+  .gantt th, .gantt td {
+    padding: 3px 4px; border-right: 1px solid #edf0f4; border-bottom: 1px solid #edf0f4;
+    min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; background: white;
+  }
+  .gantt .sticky-cat {
+    position: sticky; left: 0; background: white; min-width: 190px; max-width: 220px;
+    text-align: left; z-index: 2; padding: 6px 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .gantt .sticky-item {
+    position: sticky; left: 190px; background: white; min-width: 240px; max-width: 280px;
+    text-align: left; z-index: 2; padding: 6px 10px; box-shadow: 2px 0 4px rgba(0,0,0,0.03);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .gantt thead th {
+    background: #f8fafc; font-weight: 700; color: var(--text-muted);
+    padding: 6px 4px; font-size: 10px; position: sticky; top: 0; z-index: 3;
+  }
+  .gantt thead th.sticky-cat { z-index: 4; top: 0; background: #f8fafc; }
+  .gantt thead th.sticky-item { z-index: 4; top: 0; background: #f8fafc; }
+  .gantt .bar { font-weight: 600; }
+  .gantt .total-row td { background: #1e3a5f; color: white; font-weight: 700; }
+  .gantt .total-row .sticky-cat, .gantt .total-row .sticky-item { background: #1e3a5f; color: white; }
+  /* Category header rows */
+  .gantt tr.category-row td { background: #f1f5f9; font-weight: 700; cursor: pointer; user-select: none; }
+  .gantt tr.category-row:hover td { background: #e2e8f0; }
+  .gantt tr.category-row .sticky-cat, .gantt tr.category-row .sticky-item { background: #f1f5f9; }
+  .gantt tr.category-row:hover .sticky-cat, .gantt tr.category-row:hover .sticky-item { background: #e2e8f0; }
+  .gantt tr.category-row .toggle-icon {
+    display: inline-block; width: 14px; color: var(--text-muted); font-size: 10px;
+    margin-right: 4px; transition: transform 0.1s;
+  }
+  .gantt tr.item-row .sticky-cat { color: var(--text-muted); font-size: 10px; padding-left: 28px; }
+  .gantt tr.item-row .sticky-item { padding-left: 10px; }
+  .gantt tr.virtual-row .sticky-item { font-style: italic; }
+  /* Filter/controls bar */
+  .gantt-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .gantt-controls input.filter-input {
+    flex: 1; min-width: 200px; padding: 7px 10px; border: 1px solid var(--border);
+    border-radius: 5px; font-size: 13px;
+  }
+  .gantt-controls input.filter-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .gantt-controls .muted-btn {
+    padding: 6px 10px; font-size: 12px; background: #f1f5f9; color: var(--text);
+  }
+  .help {
+    font-size: 12px; color: var(--text-muted); margin-top: 6px; font-style: italic;
+  }
+  footer {
+    text-align: center; padding: 20px; font-size: 12px; color: var(--text-muted);
+    border-top: 1px solid var(--border); margin-top: 20px; background: white;
+  }
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; padding: 12px 18px;
+    border-radius: 8px; background: var(--primary); color: white;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.2); z-index: 100;
+    opacity: 0; transform: translateY(10px); transition: all 0.2s;
+    font-size: 13px; font-weight: 600;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: var(--danger); }
+  .toast.success { background: var(--success); }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .icon-btn { padding: 4px 7px; font-size: 12px; line-height: 1; }
+  /* Test Runner */
+  #testModal {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    padding: 20px;
+  }
+  #testModal.show { display: flex; }
+  .test-panel {
+    background: white; border-radius: 10px; max-width: 900px; width: 100%;
+    max-height: 85vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  }
+  .test-panel header {
+    background: var(--primary); position: static; border-radius: 10px 10px 0 0;
+    padding: 14px 20px;
+  }
+  .test-panel h2 { margin: 0; font-size: 18px; color: white; }
+  .test-panel .body { padding: 16px 20px; overflow-y: auto; }
+  .test-summary {
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;
+    font-size: 14px; font-weight: 600;
+  }
+  .test-summary.pass { background: #dcfce7; color: #166534; }
+  .test-summary.fail { background: #fee2e2; color: #991b1b; }
+  .test-case {
+    padding: 8px 12px; border-left: 4px solid; margin-bottom: 6px;
+    font-size: 12px; border-radius: 4px; background: #f8fafc;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .test-case.pass { border-color: var(--success); }
+  .test-case.fail { border-color: var(--danger); background: #fef2f2; }
+  .test-case .status { font-weight: 700; min-width: 50px; font-family: monospace; }
+  .test-case .name { flex: 1; }
+  .test-case .error {
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--danger);
+    margin-top: 4px; white-space: pre-wrap;
+  }
+  .test-panel footer {
+    padding: 12px 20px; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px; background: white;
+    border-radius: 0 0 10px 10px;
+  }
+  @media (max-width: 720px) {
+    header { flex-direction: column; gap: 10px; align-items: flex-start; }
+    main { padding: 14px; }
+    .result-card .value { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="branding">
+    <h1>Testimate</h1>
+    <div class="subtitle">by Roland Ross Hadi &middot; Test Automation Effort Estimator</div>
+  </div>
+  <div class="actions">
+    <label class="btn">Load File
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+    </label>
+    <button id="btnReset" class="ghost">Reset Defaults</button>
+    <button id="btnTests" class="ghost">Run Tests</button>
+    <button id="btnExportCSV">Export CSV</button>
+    <button id="btnExportExcel" class="primary-cta">Save to Excel</button>
+  </div>
+</header>
+
+<main>
+
+  <section class="card">
+    <h2>Project Configuration</h2>
+    <div class="config-grid">
+      <label>Project Name
+        <input type="text" id="projectName" value="Test Automation Estimation">
+      </label>
+      <label>Resources (# engineers)
+        <input type="number" id="resources" value="1" min="1" step="1">
+      </label>
+      <label>Working Days / Month
+        <input type="number" id="wdPerMonth" value="20" min="1" step="1">
+      </label>
+      <label>Simple rate (MD/step) 1-50 steps
+        <input type="number" id="rateSimple" value="0.25" step="0.01" min="0">
+      </label>
+      <label>Medium rate (MD/step) 51-150 steps
+        <input type="number" id="rateMedium" value="0.20" step="0.01" min="0">
+      </label>
+      <label>Complex rate (MD/step) 151+ steps
+        <input type="number" id="rateComplex" value="0.15" step="0.01" min="0">
+      </label>
+      <label>Clustering Discount %
+        <input type="number" id="clustering" value="0" min="0" max="50" step="1">
+      </label>
+      <label>Risk/Buffer %
+        <input type="number" id="buffer" value="0" min="0" max="50" step="1">
+      </label>
+    </div>
+    <p class="help">
+      Rates follow industry-standard per-step estimation. Simple (short flows), Medium (multi-step flows),
+      Complex (large E2E with heavy integration). Clustering discount reduces cost when test cases share setup /
+      libraries. Risk buffer adds contingency for uncertainty.
+    </p>
+  </section>
+
+  <details class="card" id="advancedCard">
+    <summary>Advanced Industry Factors <span class="muted" style="font-weight: 400;">(click to expand)</span></summary>
+    <div class="config-grid">
+      <label>Test Data Preparation % (uplift on variable)
+        <input type="number" id="testDataPct" value="0" min="0" max="100" step="1">
+      </label>
+      <label>Platform / Device Matrix Multiplier
+        <input type="number" id="platformMatrix" value="1" min="1" max="10" step="0.1">
+      </label>
+      <label>Learning Curve % (uplift on variable)
+        <input type="number" id="learningCurvePct" value="0" min="0" max="100" step="1">
+      </label>
+      <label>Framework Setup Uplift % (on Dev Env fixed)
+        <input type="number" id="frameworkUpliftPct" value="0" min="0" max="200" step="5">
+      </label>
+      <label>Maintenance % per year (of dev effort)
+        <input type="number" id="maintenancePctPerYear" value="0" min="0" max="100" step="5">
+      </label>
+      <label>Maintenance Horizon (months)
+        <input type="number" id="maintenanceMonths" value="0" min="0" max="60" step="1">
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="pertEnabled">
+        <span>Enable PERT 3-point estimation</span>
+      </label>
+      <label>PERT Best-case delta % (negative)
+        <input type="number" id="pertBestDelta" value="-15" min="-50" max="0" step="1">
+      </label>
+      <label>PERT Worst-case delta % (positive)
+        <input type="number" id="pertWorstDelta" value="25" min="0" max="100" step="1">
+      </label>
+    </div>
+    <p class="help">
+      Industry-recommended factors beyond the core step-based rate:
+      <b>Test Data</b> (+10-20% typical), <b>Platform Matrix</b> (e.g. 1.3-1.5x for 2 browsers, 1.5-2x for mobile multi-device),
+      <b>Learning Curve</b> (+15-30% when the team is new to the tool), <b>Framework Setup Uplift</b> (first-time-on-product
+      projects deserve +50-100% on environment and library items), <b>Maintenance</b> (20-30% of dev effort per year, ongoing).
+      <b>PERT</b> (Expected = (O + 4M + P) / 6) gives a risk-adjusted view across best/expected/worst cases.
+    </p>
+  </details>
+
+  <section class="card">
+    <h2>
+      Test Cases (Scope)
+      <button id="btnAddTC" class="primary-cta small">+ Add Test Case</button>
+    </h2>
+    <table id="tcTable">
+      <thead>
+        <tr>
+          <th style="width: 22%;">Name</th>
+          <th style="width: 10%;">Steps</th>
+          <th style="width: 14%;">Complexity</th>
+          <th style="width: 14%;">Rate (MD/step)</th>
+          <th style="width: 14%;">Variable MD</th>
+          <th style="width: 20%;">Notes</th>
+          <th style="width: 6%;"></th>
+        </tr>
+      </thead>
+      <tbody id="tcBody"></tbody>
+      <tfoot>
+        <tr>
+          <th>Totals</th>
+          <th class="numeric" id="tcTotalSteps">0</th>
+          <th>-</th>
+          <th>-</th>
+          <th class="numeric" id="tcTotalMD">0.00</th>
+          <th colspan="2"></th>
+        </tr>
+      </tfoot>
+    </table>
+    <p class="help">
+      Complexity auto-classifies based on step count. Override the rate per test case if needed.
+      "Variable MD" feeds into the Task Items breakdown below.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>
+      Task Categories &amp; Items (Work Breakdown)
+      <button id="btnAddItem" class="primary-cta small">+ Add Task Item</button>
+    </h2>
+    <table id="catTable">
+      <thead>
+        <tr>
+          <th style="width: 18%;">Category</th>
+          <th style="width: 28%;">Task Item</th>
+          <th style="width: 11%;">Type</th>
+          <th style="width: 11%;">Value</th>
+          <th style="width: 12%;">MD</th>
+          <th style="width: 14%;">Color</th>
+          <th style="width: 6%;"></th>
+        </tr>
+      </thead>
+      <tbody id="catBody"></tbody>
+      <tfoot>
+        <tr>
+          <th colspan="4">Total (Fixed + Variable)</th>
+          <th class="numeric" id="catTotalMD">0.00</th>
+          <th colspan="2"></th>
+        </tr>
+      </tfoot>
+    </table>
+    <p class="help">
+      Fixed items have an absolute MD value. Variable items have a proportion and share the (multiplier-adjusted)
+      variable bucket in that ratio. Proportions are auto-normalized.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Estimation Summary</h2>
+    <div class="result-grid">
+      <div class="result-card"><div class="label">Total Test Cases</div><div class="value" id="rTCs">0</div></div>
+      <div class="result-card"><div class="label">Total Steps</div><div class="value" id="rSteps">0</div></div>
+      <div class="result-card"><div class="label">Variable MD (net)</div><div class="value" id="rVariable">0</div></div>
+      <div class="result-card"><div class="label">Fixed MD</div><div class="value" id="rFixed">0</div></div>
+      <div class="result-card" id="cardFramework" style="display:none;"><div class="label">Framework Uplift MD</div><div class="value" id="rFramework">0</div></div>
+      <div class="result-card" id="cardMaintenance" style="display:none;"><div class="label">Maintenance MD</div><div class="value" id="rMaintenance">0</div></div>
+      <div class="result-card primary"><div class="label">Grand Total MD</div><div class="value" id="rGrand">0</div></div>
+      <div class="result-card primary"><div class="label">Calendar Months</div><div class="value" id="rMonths">0</div></div>
+      <div class="result-card primary"><div class="label">Calendar Weeks</div><div class="value" id="rWeeks">0</div></div>
+    </div>
+    <div class="result-grid" id="pertGrid" style="display:none; margin-top: 10px;">
+      <div class="result-card pert"><div class="label">PERT Best-case</div><div class="value" id="rPertBest">0</div></div>
+      <div class="result-card pert"><div class="label">PERT Expected</div><div class="value" id="rPertExpected">0</div></div>
+      <div class="result-card pert"><div class="label">PERT Worst-case</div><div class="value" id="rPertWorst">0</div></div>
+    </div>
+    <p class="help" id="summaryHelp"></p>
+  </section>
+
+  <section class="card">
+    <h2>Timeline (Sequential Gantt)</h2>
+    <div class="gantt-controls">
+      <input type="text" id="ganttFilter" class="filter-input" placeholder="Filter by category or task item...">
+      <button id="btnExpandAll" class="muted-btn small">Expand all</button>
+      <button id="btnCollapseAll" class="muted-btn small">Collapse all</button>
+    </div>
+    <div class="gantt-wrap">
+      <table class="gantt" id="ganttTable"></table>
+    </div>
+    <p class="help">
+      Sequential execution; weekly capacity = 5 MD &times; # resources. Click a category row to collapse/expand its
+      task items. Use the filter to find categories or items by name. Framework Uplift and Maintenance appear as
+      virtual rows when their advanced factors are enabled.
+    </p>
+  </section>
+
+</main>
+
+<!-- Test Runner Modal -->
+<div id="testModal" role="dialog" aria-modal="true">
+  <div class="test-panel">
+    <header>
+      <h2>Testimate Unit Tests</h2>
+    </header>
+    <div class="body" id="testResults"></div>
+    <footer>
+      <button id="btnCloseTests">Close</button>
+      <button id="btnRerunTests" class="primary-cta">Re-run</button>
+    </footer>
+  </div>
+</div>
+
+<footer>
+  Testimate &middot; by Roland Ross Hadi &middot; Industry-standard test automation effort estimator &middot;
+  Save to Excel for round-trip load support &middot;
+  <a href="?test=1" style="color: inherit;">Run Tests</a>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DEFAULTS
+// ============================================================
+const COLORS = {
+  prep: 'FFE699',       // Preparation and Planning (yellow)
+  env: 'C6E0B4',        // Environment and Framework Setup (green)
+  design: 'FCE4D6',     // Test Design (peach)
+  tsd: 'BDD7EE',        // Test Script Development (blue)
+  execution: 'F8CBAD',  // Test Execution (salmon)
+  defect: 'D9D2E9',     // Defect Management (lavender)
+  reporting: 'B4C7E7',  // Reporting and Sign-off (steel blue)
+  handover: 'A9D08E',   // Handover and Documentation (sage)
+  // Virtual Gantt rows for advanced factors
+  maint: 'E7E6E6', framework: 'FFD966'
+};
+
+const DEFAULT_STATE = {
+  project: { name: 'Test Automation Estimation', resources: 1, wdPerMonth: 20 },
+  rates: { simple: 0.25, medium: 0.20, complex: 0.15, clustering: 0, buffer: 0 },
+  advanced: {
+    testDataPct: 0,
+    platformMatrix: 1,
+    learningCurvePct: 0,
+    frameworkUpliftPct: 0,
+    maintenancePctPerYear: 0,
+    maintenanceMonths: 0,
+    pertEnabled: false,
+    pertBestDelta: -15,
+    pertWorstDelta: 25,
+  },
+  testCases: [
+    { name: 'Login',                    steps: 8,   rate: null, notes: '', complexity: null },
+    { name: 'User Registration',        steps: 30,  rate: null, notes: '', complexity: null },
+    { name: 'Product Search',           steps: 25,  rate: null, notes: '', complexity: null },
+    { name: 'Add to Cart',              steps: 20,  rate: null, notes: '', complexity: null },
+    { name: 'Checkout Flow',            steps: 75,  rate: null, notes: '', complexity: null },
+    { name: 'Payment Processing',       steps: 60,  rate: null, notes: '', complexity: null },
+    { name: 'Account Settings',         steps: 40,  rate: null, notes: '', complexity: null },
+    { name: 'Order History',            steps: 35,  rate: null, notes: '', complexity: null },
+    { name: 'Admin Dashboard',          steps: 120, rate: null, notes: '', complexity: null },
+    { name: 'End-to-End Purchase Flow', steps: 180, rate: null, notes: '', complexity: null },
+  ],
+  taskItems: [
+    // 1. Preparation and Planning (fixed setup, 5-10% of total)
+    { category: 'Preparation and Planning',        item: 'Requirements and test case review',              type: 'fixed',    value: 3,  color: COLORS.prep },
+    { category: 'Preparation and Planning',        item: 'Automation strategy and feasibility assessment', type: 'fixed',    value: 2,  color: COLORS.prep },
+    { category: 'Preparation and Planning',        item: 'Effort estimation and risk assessment',          type: 'fixed',    value: 1,  color: COLORS.prep },
+    // 2. Environment and Framework Setup (fixed, 10-20%)
+    { category: 'Environment and Framework Setup', item: 'Framework architecture design',                  type: 'fixed',    value: 3,  color: COLORS.env },
+    { category: 'Environment and Framework Setup', item: 'Tooling, environment, and license setup',        type: 'fixed',    value: 2,  color: COLORS.env },
+    { category: 'Environment and Framework Setup', item: 'CI/CD pipeline and source control setup',        type: 'fixed',    value: 2,  color: COLORS.env },
+    // 3. Test Design (variable, 5-10%)
+    { category: 'Test Design',                     item: 'Test scenario and case design',                  type: 'variable', value: 5,  color: COLORS.design },
+    { category: 'Test Design',                     item: 'Test data design (fixtures, boundary, edge)',    type: 'variable', value: 3,  color: COLORS.design },
+    // 4. Test Script Development (variable, 30-50%)
+    { category: 'Test Script Development',         item: 'Automate test case scripts',                     type: 'variable', value: 15, color: COLORS.tsd },
+    { category: 'Test Script Development',         item: 'Common libraries and utilities',                 type: 'variable', value: 4,  color: COLORS.tsd },
+    { category: 'Test Script Development',         item: 'Object repository (locators, identifiers)',      type: 'variable', value: 4,  color: COLORS.tsd },
+    { category: 'Test Script Development',         item: 'Test data preparation and fixtures',             type: 'variable', value: 3,  color: COLORS.tsd },
+    { category: 'Test Script Development',         item: 'Unit testing of automation code',                type: 'variable', value: 3,  color: COLORS.tsd },
+    { category: 'Test Script Development',         item: 'Code review',                                    type: 'variable', value: 2,  color: COLORS.tsd },
+    { category: 'Test Script Development',         item: 'Script debugging and retrofitting',              type: 'variable', value: 2,  color: COLORS.tsd },
+    // 5. Test Execution (variable, 10-20%)
+    { category: 'Test Execution',                  item: 'Smoke and regression test execution',            type: 'variable', value: 8,  color: COLORS.execution },
+    { category: 'Test Execution',                  item: 'Cross-browser / cross-platform execution',       type: 'variable', value: 3,  color: COLORS.execution },
+    { category: 'Test Execution',                  item: 'Results analysis and logs review',               type: 'variable', value: 4,  color: COLORS.execution },
+    { category: 'Test Execution',                  item: 'Evidence capture (logs, screenshots, videos)',   type: 'variable', value: 3,  color: COLORS.execution },
+    // 6. Defect Management (variable, 5-10%)
+    { category: 'Defect Management',               item: 'Defect triage and logging',                      type: 'variable', value: 3,  color: COLORS.defect },
+    { category: 'Defect Management',               item: 'Script recalibration after fixes',               type: 'variable', value: 3,  color: COLORS.defect },
+    { category: 'Defect Management',               item: 'Regression re-execution after fixes',            type: 'variable', value: 2,  color: COLORS.defect },
+    // 7. Reporting and Sign-off (fixed, 5-10%)
+    { category: 'Reporting and Sign-off',          item: 'Automation metrics and coverage report',         type: 'fixed',    value: 2,  color: COLORS.reporting },
+    { category: 'Reporting and Sign-off',          item: 'Stakeholder walkthrough and acceptance',         type: 'fixed',    value: 2,  color: COLORS.reporting },
+    { category: 'Reporting and Sign-off',          item: 'Test closure report and lessons learned',        type: 'fixed',    value: 1,  color: COLORS.reporting },
+    // 8. Handover and Documentation (fixed, 3-5%)
+    { category: 'Handover and Documentation',      item: 'Runbook and wiki documentation',                 type: 'fixed',    value: 2,  color: COLORS.handover },
+    { category: 'Handover and Documentation',      item: 'Knowledge transfer and training',                type: 'fixed',    value: 2,  color: COLORS.handover },
+  ],
+};
+
+function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+let state = clone(DEFAULT_STATE);
+
+// ============================================================
+// CALCULATION HELPERS (pure, easily unit-testable)
+// ============================================================
+function classify(steps) {
+  const s = Number(steps) || 0;
+  if (s <= 50) return 'Simple';
+  if (s <= 150) return 'Medium';
+  return 'Complex';
+}
+function getTCComplexity(tc) {
+  // Override wins if set to Simple/Medium/Complex; else auto-classify by steps
+  if (tc && tc.complexity && ['Simple', 'Medium', 'Complex'].includes(tc.complexity)) return tc.complexity;
+  return classify(Number(tc && tc.steps) || 0);
+}
+function getRate(complexity, s) {
+  s = s || state;
+  const k = complexity.toLowerCase();
+  return Number(s.rates[k]) || 0;
+}
+function getTCRate(tc, s) {
+  s = s || state;
+  if (tc.rate !== null && tc.rate !== undefined && tc.rate !== '' && !isNaN(tc.rate)) return Number(tc.rate);
+  return getRate(getTCComplexity(tc), s);
+}
+function tcMD(tc, s) {
+  s = s || state;
+  return (Number(tc.steps) || 0) * getTCRate(tc, s);
+}
+function variableGross(s) {
+  s = s || state;
+  return s.testCases.reduce((sum, tc) => sum + tcMD(tc, s), 0);
+}
+function variableAfterMultipliers(s) {
+  s = s || state;
+  let v = variableGross(s);
+  v = v * (Number(s.advanced.platformMatrix) || 1);
+  v = v * (1 + (Number(s.advanced.learningCurvePct) || 0) / 100);
+  v = v * (1 + (Number(s.advanced.testDataPct) || 0) / 100);
+  return v;
+}
+function variableNet(s) {
+  s = s || state;
+  let v = variableAfterMultipliers(s);
+  v = v * (1 - (Number(s.rates.clustering) || 0) / 100);
+  v = v * (1 + (Number(s.rates.buffer) || 0) / 100);
+  return v;
+}
+function fixedTotal(s) {
+  s = s || state;
+  return s.taskItems.filter(i => i.type === 'fixed').reduce((sum, i) => sum + (Number(i.value) || 0), 0);
+}
+function fixedDevEnvBaseline(s) {
+  s = s || state;
+  return s.taskItems.filter(i => i.type === 'fixed' && /environment|framework/i.test(i.category))
+    .reduce((sum, i) => sum + (Number(i.value) || 0), 0);
+}
+function frameworkUpliftMD(s) {
+  s = s || state;
+  return fixedDevEnvBaseline(s) * (Number(s.advanced.frameworkUpliftPct) || 0) / 100;
+}
+function maintenanceMD(s) {
+  s = s || state;
+  const months = Number(s.advanced.maintenanceMonths) || 0;
+  const pct = Number(s.advanced.maintenancePctPerYear) || 0;
+  if (months <= 0 || pct <= 0) return 0;
+  const devEffort = variableNet(s) + fixedTotal(s) + frameworkUpliftMD(s);
+  return devEffort * (pct / 100) * (months / 12);
+}
+function variablePropSum(s) {
+  s = s || state;
+  return s.taskItems.filter(i => i.type === 'variable').reduce((sum, i) => sum + (Number(i.value) || 0), 0);
+}
+function itemMD(item, s) {
+  s = s || state;
+  if (item.type === 'fixed') return Number(item.value) || 0;
+  const sum = variablePropSum(s);
+  if (sum === 0) return 0;
+  return variableNet(s) * (Number(item.value) || 0) / sum;
+}
+function grandTotal(s) {
+  s = s || state;
+  return fixedTotal(s) + variableNet(s) + frameworkUpliftMD(s) + maintenanceMD(s);
+}
+function totalSteps(s) {
+  s = s || state;
+  return s.testCases.reduce((sum, tc) => sum + (Number(tc.steps) || 0), 0);
+}
+function capacity(s) {
+  s = s || state;
+  return 5 * (Number(s.project.resources) || 1);
+}
+function totalWeeks(s) {
+  s = s || state;
+  const cap = capacity(s);
+  return cap > 0 ? Math.ceil(grandTotal(s) / cap) : 0;
+}
+function totalMonths(s) {
+  s = s || state;
+  const denom = (Number(s.project.wdPerMonth) || 20) * (Number(s.project.resources) || 1);
+  return denom > 0 ? grandTotal(s) / denom : 0;
+}
+function pertExpected(s) {
+  s = s || state;
+  const E = grandTotal(s);
+  const best = E * (1 + (Number(s.advanced.pertBestDelta) || 0) / 100);
+  const worst = E * (1 + (Number(s.advanced.pertWorstDelta) || 0) / 100);
+  return (best + 4 * E + worst) / 6;
+}
+function pertBest(s) {
+  s = s || state;
+  return grandTotal(s) * (1 + (Number(s.advanced.pertBestDelta) || 0) / 100);
+}
+function pertWorst(s) {
+  s = s || state;
+  return grandTotal(s) * (1 + (Number(s.advanced.pertWorstDelta) || 0) / 100);
+}
+
+// ============================================================
+// Gantt allocation (pure function)
+// ============================================================
+function buildGanttRows(s) {
+  s = s || state;
+  const cap = capacity(s);
+  const rows = [];
+  // Real task items
+  for (const item of s.taskItems) {
+    rows.push({ category: item.category, item: item.item, color: item.color, md: itemMD(item, s), virtual: false });
+  }
+  // Insert framework uplift as virtual row after last Development Environment item
+  const fu = frameworkUpliftMD(s);
+  if (fu > 0) {
+    let insertIdx = rows.length;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (/environment|framework/i.test(rows[i].category)) { insertIdx = i + 1; break; }
+    }
+    rows.splice(insertIdx, 0, {
+      category: 'Framework Setup Uplift',
+      item: 'Framework Setup Uplift (advanced)',
+      color: COLORS.framework, md: fu, virtual: true,
+    });
+  }
+  // Maintenance appended at end
+  const m = maintenanceMD(s);
+  if (m > 0) {
+    rows.push({
+      category: 'Ongoing Maintenance',
+      item: 'Ongoing Maintenance (advanced)',
+      color: COLORS.maint, md: m, virtual: true,
+    });
+  }
+  // Compute start/end MD windows cumulatively
+  let cum = 0;
+  for (const r of rows) {
+    r.startMD = cum;
+    r.endMD = cum + r.md;
+    r.startWk = r.md > 0 && cap > 0 ? Math.floor(r.startMD / cap) + 1 : 0;
+    r.endWk = r.md > 0 && cap > 0 ? Math.ceil(r.endMD / cap) : 0;
+    cum = r.endMD;
+  }
+  return { rows, cap, totalMD: cum };
+}
+
+function ganttWeekMD(row, w, cap) {
+  const wkStart = (w - 1) * cap;
+  const wkEnd = w * cap;
+  if (row.md <= 0 || row.endMD <= wkStart || row.startMD >= wkEnd) return 0;
+  return Math.min(wkEnd, row.endMD) - Math.max(wkStart, row.startMD);
+}
+
+function groupByCategory(rows) {
+  // Preserves insertion order using Map
+  const groups = new Map();
+  for (const r of rows) {
+    if (!groups.has(r.category)) groups.set(r.category, []);
+    groups.get(r.category).push(r);
+  }
+  return groups;
+}
+
+function categorySummary(items) {
+  const md = items.reduce((s, r) => s + r.md, 0);
+  const startWks = items.filter(r => r.startWk > 0).map(r => r.startWk);
+  const endWks = items.filter(r => r.endWk > 0).map(r => r.endWk);
+  const startWk = startWks.length ? Math.min.apply(null, startWks) : 0;
+  const endWk = endWks.length ? Math.max.apply(null, endWks) : 0;
+  return { md, startWk, endWk, count: items.length, color: items[0] ? items[0].color : 'DDDDDD' };
+}
+
+function filterMatches(text, filter) {
+  if (!filter) return true;
+  return String(text || '').toLowerCase().includes(String(filter).toLowerCase());
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function fmt(n, d = 2) {
+  if (isNaN(n)) return '-';
+  return Number(n).toFixed(d);
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderConfig() {
+  document.getElementById('projectName').value = state.project.name;
+  document.getElementById('resources').value = state.project.resources;
+  document.getElementById('wdPerMonth').value = state.project.wdPerMonth;
+  document.getElementById('rateSimple').value = state.rates.simple;
+  document.getElementById('rateMedium').value = state.rates.medium;
+  document.getElementById('rateComplex').value = state.rates.complex;
+  document.getElementById('clustering').value = state.rates.clustering;
+  document.getElementById('buffer').value = state.rates.buffer;
+  document.getElementById('testDataPct').value = state.advanced.testDataPct;
+  document.getElementById('platformMatrix').value = state.advanced.platformMatrix;
+  document.getElementById('learningCurvePct').value = state.advanced.learningCurvePct;
+  document.getElementById('frameworkUpliftPct').value = state.advanced.frameworkUpliftPct;
+  document.getElementById('maintenancePctPerYear').value = state.advanced.maintenancePctPerYear;
+  document.getElementById('maintenanceMonths').value = state.advanced.maintenanceMonths;
+  document.getElementById('pertEnabled').checked = state.advanced.pertEnabled;
+  document.getElementById('pertBestDelta').value = state.advanced.pertBestDelta;
+  document.getElementById('pertWorstDelta').value = state.advanced.pertWorstDelta;
+}
+
+function renderTestCases() {
+  const body = document.getElementById('tcBody');
+  body.innerHTML = '';
+  state.testCases.forEach((tc, idx) => {
+    const autoComp = classify(Number(tc.steps) || 0);
+    const effComp = getTCComplexity(tc);
+    const rate = getTCRate(tc);
+    const md = tcMD(tc);
+    const override = tc.complexity && ['Simple', 'Medium', 'Complex'].includes(tc.complexity);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${escapeHtml(tc.name || '')}" data-idx="${idx}" data-field="name"></td>
+      <td class="numeric"><input type="number" min="0" value="${tc.steps}" data-idx="${idx}" data-field="steps"></td>
+      <td>
+        <select class="complexity-select cx-${effComp.toLowerCase()} ${override ? 'cx-override' : ''}" data-idx="${idx}" data-field="complexity" title="${override ? 'Override set' : 'Auto-classified from steps'}">
+          <option value="">Auto (${autoComp})</option>
+          <option value="Simple"  ${tc.complexity === 'Simple'  ? 'selected' : ''}>Simple</option>
+          <option value="Medium"  ${tc.complexity === 'Medium'  ? 'selected' : ''}>Medium</option>
+          <option value="Complex" ${tc.complexity === 'Complex' ? 'selected' : ''}>Complex</option>
+        </select>
+      </td>
+      <td class="numeric">
+        <input type="number" step="0.01" min="0" value="${tc.rate !== null && tc.rate !== undefined && tc.rate !== '' ? tc.rate : ''}" placeholder="${rate}" data-idx="${idx}" data-field="rate">
+      </td>
+      <td class="numeric">${fmt(md)}</td>
+      <td><input type="text" value="${escapeHtml(tc.notes || '')}" data-idx="${idx}" data-field="notes"></td>
+      <td><button class="icon-btn danger" data-remove-tc="${idx}" title="Remove">&times;</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById('tcTotalSteps').textContent = totalSteps();
+  document.getElementById('tcTotalMD').textContent = fmt(variableGross());
+
+  body.querySelectorAll('input, select').forEach(inp => {
+    const evt = inp.tagName === 'SELECT' ? 'change' : 'input';
+    inp.addEventListener(evt, (e) => {
+      const idx = +e.target.dataset.idx;
+      const field = e.target.dataset.field;
+      let v = e.target.value;
+      if (field === 'steps') v = v === '' ? 0 : Number(v);
+      if (field === 'rate') v = v === '' ? null : Number(v);
+      if (field === 'complexity') v = v === '' ? null : v; // null = auto
+      state.testCases[idx][field] = v;
+      if (field === 'steps' || field === 'rate' || field === 'complexity') {
+        // Full re-render of this row keeps things simple and keeps everything consistent
+        renderTestCases();
+        renderCategoryTable();
+        renderResults();
+        renderGantt();
+        // Restore focus on the field the user was editing
+        const sel = body.querySelector(`[data-idx="${idx}"][data-field="${field}"]`);
+        if (sel && typeof sel.focus === 'function') sel.focus();
+      }
+    });
+  });
+  body.querySelectorAll('[data-remove-tc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.removeTc;
+      state.testCases.splice(idx, 1);
+      renderAll();
+    });
+  });
+}
+
+function renderCategoryTable() {
+  const body = document.getElementById('catBody');
+  body.innerHTML = '';
+  state.taskItems.forEach((item, idx) => {
+    const md = itemMD(item);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${escapeHtml(item.category || '')}" data-idx="${idx}" data-field="category"></td>
+      <td><input type="text" value="${escapeHtml(item.item || '')}" data-idx="${idx}" data-field="item"></td>
+      <td>
+        <select data-idx="${idx}" data-field="type">
+          <option value="fixed" ${item.type === 'fixed' ? 'selected' : ''}>Fixed</option>
+          <option value="variable" ${item.type === 'variable' ? 'selected' : ''}>Variable</option>
+        </select>
+      </td>
+      <td class="numeric"><input type="number" min="0" step="0.1" value="${item.value}" data-idx="${idx}" data-field="value"></td>
+      <td class="numeric">${fmt(md)}</td>
+      <td><input type="color" value="#${item.color}" data-idx="${idx}" data-field="color" style="width:100%;height:26px;border:none;background:transparent;cursor:pointer;"></td>
+      <td><button class="icon-btn danger" data-remove-item="${idx}" title="Remove">&times;</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById('catTotalMD').textContent = fmt(grandTotal());
+
+  body.querySelectorAll('input, select').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const idx = +e.target.dataset.idx;
+      const field = e.target.dataset.field;
+      let v = e.target.value;
+      if (field === 'value') v = v === '' ? 0 : Number(v);
+      if (field === 'color') v = v.replace('#', '').toUpperCase();
+      state.taskItems[idx][field] = v;
+      if (field === 'type' || field === 'value' || field === 'category') {
+        renderCategoryTable();
+        renderResults();
+        renderGantt();
+      } else {
+        renderGantt();
+      }
+    });
+  });
+  body.querySelectorAll('[data-remove-item]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.removeItem;
+      state.taskItems.splice(idx, 1);
+      renderAll();
+    });
+  });
+}
+
+function renderResults() {
+  document.getElementById('rTCs').textContent = state.testCases.length;
+  document.getElementById('rSteps').textContent = totalSteps();
+  document.getElementById('rVariable').textContent = fmt(variableNet());
+  document.getElementById('rFixed').textContent = fmt(fixedTotal());
+  document.getElementById('rGrand').textContent = fmt(grandTotal());
+  document.getElementById('rMonths').textContent = fmt(totalMonths());
+  document.getElementById('rWeeks').textContent = fmt(grandTotal() / capacity(), 1);
+
+  // Framework uplift card
+  const fu = frameworkUpliftMD();
+  document.getElementById('cardFramework').style.display = fu > 0 ? '' : 'none';
+  document.getElementById('rFramework').textContent = fmt(fu);
+
+  // Maintenance card
+  const m = maintenanceMD();
+  document.getElementById('cardMaintenance').style.display = m > 0 ? '' : 'none';
+  document.getElementById('rMaintenance').textContent = fmt(m);
+
+  // PERT
+  const pertGrid = document.getElementById('pertGrid');
+  if (state.advanced.pertEnabled) {
+    pertGrid.style.display = '';
+    document.getElementById('rPertBest').textContent = fmt(pertBest());
+    document.getElementById('rPertExpected').textContent = fmt(pertExpected());
+    document.getElementById('rPertWorst').textContent = fmt(pertWorst());
+  } else {
+    pertGrid.style.display = 'none';
+  }
+
+  // Summary help
+  const gross = variableGross();
+  const parts = [];
+  parts.push(`Variable gross (steps × rate): <b>${fmt(gross)} MD</b>.`);
+  const am = variableAfterMultipliers();
+  if (Math.abs(am - gross) > 0.001) parts.push(`After Platform/Learning/TestData multipliers: <b>${fmt(am)} MD</b>.`);
+  if ((state.rates.clustering || 0) > 0) parts.push(`Clustering -${state.rates.clustering}%.`);
+  if ((state.rates.buffer || 0) > 0) parts.push(`Buffer +${state.rates.buffer}%.`);
+  parts.push(`Variable net: <b>${fmt(variableNet())} MD</b>.`);
+  parts.push(`Fixed: <b>${fmt(fixedTotal())} MD</b>.`);
+  if (fu > 0) parts.push(`Framework uplift: <b>+${fmt(fu)} MD</b>.`);
+  if (m > 0) parts.push(`Maintenance (${state.advanced.maintenancePctPerYear}% × ${state.advanced.maintenanceMonths} months): <b>+${fmt(m)} MD</b>.`);
+  parts.push(`<b>Grand Total: ${fmt(grandTotal())} MD</b> = <b>${fmt(totalMonths())} months</b>.`);
+  document.getElementById('summaryHelp').innerHTML = parts.join(' &middot; ');
+}
+
+const ganttUI = {
+  filter: '',
+  collapsed: new Set(),
+};
+
+function renderGantt() {
+  const table = document.getElementById('ganttTable');
+  table.innerHTML = '';
+  const { rows, cap, totalMD } = buildGanttRows();
+  const weeks = Math.max(16, Math.ceil(totalMD / cap) + 2);
+  const groups = groupByCategory(rows);
+  const filter = ganttUI.filter;
+
+  // Header
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  trh.innerHTML = `<th class="sticky-cat">Category</th><th class="sticky-item">Task Item</th><th>MD</th><th>Wk</th>`;
+  for (let w = 1; w <= weeks; w++) trh.innerHTML += `<th>W${w}</th>`;
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  const weekTotals = new Array(weeks).fill(0);
+
+  for (const [cat, items] of groups) {
+    // Filtering: category row survives if category matches OR any item matches
+    const catMatch = filterMatches(cat, filter);
+    const anyItemMatch = items.some(r => filterMatches(r.item, filter));
+    if (filter && !catMatch && !anyItemMatch) continue;
+
+    const summary = categorySummary(items);
+    const isCollapsed = ganttUI.collapsed.has(cat) && !filter; // filter force-expands to show matches
+    const isVirtual = items.every(r => r.virtual);
+
+    // Category header row (aggregated)
+    const catRow = document.createElement('tr');
+    catRow.className = 'category-row' + (isCollapsed ? ' collapsed' : '');
+    catRow.dataset.category = cat;
+    const icon = isCollapsed ? '&#9654;' : '&#9660;'; // right / down triangle
+    let catHtml = `<td class="sticky-cat" title="${escapeHtml(cat)}">
+                     <span class="toggle-icon">${icon}</span><span>${escapeHtml(cat)}</span>
+                     <span style="color:var(--text-muted);font-weight:400;margin-left:6px;">(${items.length})</span>
+                   </td>
+                   <td class="sticky-item" style="color:var(--text-muted);">${isCollapsed ? items.length + ' hidden' : 'aggregated'}</td>
+                   <td>${fmt(summary.md)}</td>
+                   <td>${summary.startWk === 0 ? '-' : summary.startWk + '-' + summary.endWk}</td>`;
+    for (let w = 1; w <= weeks; w++) {
+      let agg = 0;
+      for (const r of items) agg += ganttWeekMD(r, w, cap);
+      if (agg > 0.001) {
+        catHtml += `<td class="bar" style="background:#${summary.color};color:#222;">${fmt(agg, 1)}</td>`;
+      } else {
+        catHtml += `<td></td>`;
+      }
+    }
+    catRow.innerHTML = catHtml;
+    catRow.addEventListener('click', () => {
+      if (ganttUI.collapsed.has(cat)) ganttUI.collapsed.delete(cat);
+      else ganttUI.collapsed.add(cat);
+      renderGantt();
+    });
+    tbody.appendChild(catRow);
+
+    // Item rows (shown when expanded; also filtered)
+    if (!isCollapsed) {
+      for (const r of items) {
+        if (filter && !catMatch && !filterMatches(r.item, filter)) continue;
+        const tr = document.createElement('tr');
+        tr.className = 'item-row' + (r.virtual ? ' virtual-row' : '');
+        tr.innerHTML = `<td class="sticky-cat" title="${escapeHtml(cat)}">&nbsp;</td>
+                        <td class="sticky-item" title="${escapeHtml(r.item)}">${escapeHtml(r.item)}</td>
+                        <td>${fmt(r.md)}</td>
+                        <td>${r.startWk === 0 ? '-' : r.startWk + '-' + r.endWk}</td>`;
+        for (let w = 1; w <= weeks; w++) {
+          const v = ganttWeekMD(r, w, cap);
+          if (v > 0.001) {
+            tr.innerHTML += `<td class="bar" style="background:#${r.color};color:#222;">${fmt(v, 1)}</td>`;
+          } else {
+            tr.innerHTML += `<td></td>`;
+          }
+        }
+        tbody.appendChild(tr);
+      }
+    }
+  }
+
+  // Compute weekly totals across ALL items (ignoring filter effects on item rows)
+  for (let w = 1; w <= weeks; w++) {
+    let t = 0;
+    for (const r of rows) t += ganttWeekMD(r, w, cap);
+    weekTotals[w - 1] = t;
+  }
+
+  const totalRow = document.createElement('tr');
+  totalRow.className = 'total-row';
+  totalRow.innerHTML = `<td class="sticky-cat">Weekly MD Total</td>
+                        <td class="sticky-item"></td>
+                        <td>${fmt(totalMD)}</td><td>-</td>`;
+  for (let w = 0; w < weeks; w++) {
+    totalRow.innerHTML += `<td>${weekTotals[w] > 0.001 ? fmt(weekTotals[w], 1) : ''}</td>`;
+  }
+  tbody.appendChild(totalRow);
+  table.appendChild(tbody);
+}
+
+// Filter and collapse/expand controls
+document.getElementById('ganttFilter').addEventListener('input', (e) => {
+  ganttUI.filter = e.target.value || '';
+  renderGantt();
+});
+document.getElementById('btnExpandAll').addEventListener('click', () => {
+  ganttUI.collapsed.clear();
+  renderGantt();
+});
+document.getElementById('btnCollapseAll').addEventListener('click', () => {
+  const { rows } = buildGanttRows();
+  for (const r of rows) ganttUI.collapsed.add(r.category);
+  renderGantt();
+});
+
+function renderAll() {
+  renderConfig();
+  renderTestCases();
+  renderCategoryTable();
+  renderResults();
+  renderGantt();
+}
+
+// ============================================================
+// CONFIG BINDINGS
+// ============================================================
+function bindConfig() {
+  const map = {
+    projectName: ['project', 'name', 'text'],
+    resources: ['project', 'resources', 'number'],
+    wdPerMonth: ['project', 'wdPerMonth', 'number'],
+    rateSimple: ['rates', 'simple', 'number'],
+    rateMedium: ['rates', 'medium', 'number'],
+    rateComplex: ['rates', 'complex', 'number'],
+    clustering: ['rates', 'clustering', 'number'],
+    buffer: ['rates', 'buffer', 'number'],
+    testDataPct: ['advanced', 'testDataPct', 'number'],
+    platformMatrix: ['advanced', 'platformMatrix', 'number'],
+    learningCurvePct: ['advanced', 'learningCurvePct', 'number'],
+    frameworkUpliftPct: ['advanced', 'frameworkUpliftPct', 'number'],
+    maintenancePctPerYear: ['advanced', 'maintenancePctPerYear', 'number'],
+    maintenanceMonths: ['advanced', 'maintenanceMonths', 'number'],
+    pertBestDelta: ['advanced', 'pertBestDelta', 'number'],
+    pertWorstDelta: ['advanced', 'pertWorstDelta', 'number'],
+  };
+  Object.entries(map).forEach(([id, [sec, key, kind]]) => {
+    document.getElementById(id).addEventListener('input', (e) => {
+      let v = e.target.value;
+      if (kind === 'number') v = v === '' ? 0 : Number(v);
+      state[sec][key] = v;
+      renderTestCases();
+      renderCategoryTable();
+      renderResults();
+      renderGantt();
+    });
+  });
+  document.getElementById('pertEnabled').addEventListener('change', (e) => {
+    state.advanced.pertEnabled = e.target.checked;
+    renderResults();
+  });
+}
+
+document.getElementById('btnAddTC').addEventListener('click', () => {
+  const nextNum = state.testCases.length + 1;
+  state.testCases.push({ name: 'TC' + String(nextNum).padStart(3, '0'), steps: 30, rate: null, notes: '' });
+  renderAll();
+});
+document.getElementById('btnAddItem').addEventListener('click', () => {
+  state.taskItems.push({ category: 'New Category', item: 'New task item', type: 'variable', value: 1, color: 'BDD7EE' });
+  renderAll();
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (confirm('Reset all data to defaults? Unsaved changes will be lost.')) {
+    state = clone(DEFAULT_STATE);
+    renderAll();
+    toast('Defaults restored', 'success');
+  }
+});
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+// ExcelJS-powered styled export that mirrors the UI look
+async function exportExcel() {
+  try {
+    if (typeof ExcelJS === 'undefined') throw new Error('ExcelJS library not loaded');
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Testimate by Roland Ross Hadi';
+    wb.created = new Date();
+    wb.title = 'Testimate Estimation';
+
+    const C = {
+      primary: 'FF1E3A5F', primaryLight: 'FF305496', accent: 'FF4A90D9', white: 'FFFFFFFF',
+      muted: 'FF6B7280', subBg: 'FFD9E1F2', outputBg: 'FFBDD7EE', rowAlt: 'FFF8FAFC',
+      cxBg: { Simple: 'FFE2EFDA', Medium: 'FFFFF2CC', Complex: 'FFFCE4D6' },
+      cxFg: { Simple: 'FF1C6B2F', Medium: 'FF7A5D00', Complex: 'FF9D3010' },
+      fixedTag: 'FFFDE68A', varTag: 'FFBFDBFE',
+    };
+    const catColor = (category) => {
+      const item = state.taskItems.find(i => i.category === category);
+      if (item) return 'FF' + (item.color || 'BDD7EE').toUpperCase();
+      if (/framework.*uplift/i.test(category)) return 'FF' + COLORS.framework;
+      if (/maintenance/i.test(category)) return 'FF' + COLORS.maint;
+      return 'FFBDD7EE';
+    };
+    const solidFill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const thin = { style: 'thin', color: { argb: 'FFBFBFBF' }};
+    const boxBorder = { top: thin, left: thin, right: thin, bottom: thin };
+
+    // ============ Summary ============
+    const s = wb.addWorksheet('Summary', { properties: { tabColor: { argb: C.primary }}});
+
+    s.mergeCells('A1:C1');
+    const title = s.getCell('A1');
+    title.value = 'Testimate - Test Automation Effort Estimation';
+    title.font = { bold: true, size: 18, color: { argb: C.white }};
+    title.fill = solidFill(C.primary);
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+    s.getRow(1).height = 38;
+
+    s.mergeCells('A2:C2');
+    const sub = s.getCell('A2');
+    sub.value = 'by Roland Ross Hadi | Generated ' + new Date().toISOString().split('T')[0];
+    sub.font = { italic: true, color: { argb: C.muted }};
+    sub.alignment = { horizontal: 'center' };
+
+    let r = 4;
+    const section = (text) => {
+      s.mergeCells(`A${r}:C${r}`);
+      const c = s.getCell(`A${r}`);
+      c.value = text;
+      c.font = { bold: true, color: { argb: C.white }, size: 11 };
+      c.fill = solidFill(C.primaryLight);
+      c.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      s.getRow(r).height = 22;
+      r++;
+    };
+    const kv = (k, v, emphasis) => {
+      const k_ = s.getCell(`A${r}`); k_.value = k;
+      const v_ = s.getCell(`B${r}`); v_.value = v;
+      k_.font = { bold: true, color: { argb: emphasis ? C.white : C.primary }};
+      k_.fill = solidFill(emphasis ? C.primary : 'FFF2F2F2');
+      k_.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      k_.border = boxBorder;
+      v_.font = emphasis ? { bold: true, color: { argb: C.white }, size: 12 } : { color: { argb: C.primary }};
+      v_.fill = solidFill(emphasis ? C.primary : C.white);
+      v_.alignment = { horizontal: 'right', vertical: 'middle' };
+      v_.border = boxBorder;
+      r++;
+    };
+    section('PROJECT');
+    kv('Project Name', state.project.name);
+    kv('Resources (# engineers)', state.project.resources);
+    kv('Working Days per Month', state.project.wdPerMonth);
+    r++;
+
+    section('RATES');
+    kv('Simple rate (MD/step)', state.rates.simple);
+    kv('Medium rate (MD/step)', state.rates.medium);
+    kv('Complex rate (MD/step)', state.rates.complex);
+    kv('Clustering Discount %', state.rates.clustering);
+    kv('Risk/Buffer %', state.rates.buffer);
+    r++;
+
+    section('ADVANCED FACTORS');
+    kv('Test Data Preparation %', state.advanced.testDataPct);
+    kv('Platform Matrix Multiplier', state.advanced.platformMatrix);
+    kv('Learning Curve %', state.advanced.learningCurvePct);
+    kv('Framework Setup Uplift %', state.advanced.frameworkUpliftPct);
+    kv('Maintenance % per year', state.advanced.maintenancePctPerYear);
+    kv('Maintenance Horizon (months)', state.advanced.maintenanceMonths);
+    kv('PERT Enabled', state.advanced.pertEnabled ? 'TRUE' : 'FALSE');
+    kv('PERT Best-case Delta %', state.advanced.pertBestDelta);
+    kv('PERT Worst-case Delta %', state.advanced.pertWorstDelta);
+    r++;
+
+    section('RESULTS');
+    kv('Total Test Cases', state.testCases.length);
+    kv('Total Steps', totalSteps());
+    kv('Variable MD (gross)', Number(fmt(variableGross())));
+    kv('Variable MD (net)', Number(fmt(variableNet())));
+    kv('Fixed MD', Number(fmt(fixedTotal())));
+    if (frameworkUpliftMD() > 0) kv('Framework Uplift MD', Number(fmt(frameworkUpliftMD())));
+    if (maintenanceMD() > 0) kv('Maintenance MD', Number(fmt(maintenanceMD())));
+    kv('Grand Total MD', Number(fmt(grandTotal())), true);
+    kv('Calendar Months', Number(fmt(totalMonths())), true);
+    kv('Calendar Weeks', Number(fmt(grandTotal() / capacity(), 1)), true);
+    if (state.advanced.pertEnabled) {
+      r++;
+      section('PERT THREE-POINT');
+      kv('PERT Best-case MD', Number(fmt(pertBest())));
+      kv('PERT Expected MD', Number(fmt(pertExpected())));
+      kv('PERT Worst-case MD', Number(fmt(pertWorst())));
+    }
+
+    s.getColumn(1).width = 42;
+    s.getColumn(2).width = 20;
+    s.getColumn(3).width = 14;
+    s.views = [{ state: 'frozen', ySplit: 3 }];
+
+    // ============ TestCases ============
+    const tcs = wb.addWorksheet('TestCases', { properties: { tabColor: { argb: C.accent }}});
+    tcs.columns = [
+      { header: 'Name', key: 'name', width: 30 },
+      { header: 'Steps', key: 'steps', width: 9 },
+      { header: 'Complexity', key: 'complexity', width: 14 },
+      { header: 'Complexity Override', key: 'override', width: 20 },
+      { header: 'Rate (MD/step)', key: 'rate', width: 15 },
+      { header: 'Variable MD', key: 'md', width: 13 },
+      { header: 'Notes', key: 'notes', width: 34 },
+    ];
+    tcs.getRow(1).eachCell(c => {
+      c.font = { bold: true, color: { argb: C.white }};
+      c.fill = solidFill(C.primaryLight);
+      c.alignment = { horizontal: 'center', vertical: 'middle' };
+      c.border = boxBorder;
+    });
+    tcs.getRow(1).height = 24;
+
+    state.testCases.forEach((tc, idx) => {
+      const eff = getTCComplexity(tc);
+      const override = tc.complexity && ['Simple', 'Medium', 'Complex'].includes(tc.complexity) ? tc.complexity : '';
+      const row = tcs.addRow({
+        name: tc.name, steps: Number(tc.steps) || 0, complexity: eff, override,
+        rate: getTCRate(tc), md: Number(fmt(tcMD(tc))), notes: tc.notes || '',
+      });
+      const altFill = idx % 2 === 1 ? solidFill(C.rowAlt) : null;
+      row.eachCell(c => { if (altFill) c.fill = altFill; c.border = boxBorder; });
+      const cx = row.getCell('complexity');
+      cx.fill = solidFill(C.cxBg[eff]);
+      cx.font = { bold: true, color: { argb: C.cxFg[eff] }};
+      cx.alignment = { horizontal: 'center' };
+      if (override) {
+        const ov = row.getCell('override');
+        ov.fill = solidFill(C.cxBg[override]);
+        ov.font = { bold: true, color: { argb: C.cxFg[override] }};
+        ov.alignment = { horizontal: 'center' };
+      }
+      row.getCell('steps').alignment = { horizontal: 'right' };
+      row.getCell('rate').numFmt = '0.00';
+      row.getCell('rate').alignment = { horizontal: 'right' };
+      row.getCell('md').numFmt = '0.00';
+      row.getCell('md').alignment = { horizontal: 'right' };
+    });
+    const tcTotal = tcs.addRow({ name: 'TOTAL', steps: totalSteps(), complexity: '', override: '', rate: '', md: Number(fmt(variableGross())), notes: '' });
+    tcTotal.eachCell(c => {
+      c.font = { bold: true, color: { argb: C.white }};
+      c.fill = solidFill(C.primary);
+      c.border = boxBorder;
+    });
+    tcTotal.getCell('md').numFmt = '0.00';
+    tcTotal.getCell('steps').alignment = { horizontal: 'right' };
+    tcTotal.getCell('md').alignment = { horizontal: 'right' };
+    tcs.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 7 }};
+    tcs.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // ============ TaskItems ============
+    const tis = wb.addWorksheet('TaskItems', { properties: { tabColor: { argb: 'FFFFD966' }}});
+    tis.columns = [
+      { header: 'Category', key: 'category', width: 36 },
+      { header: 'Task Item', key: 'item', width: 44 },
+      { header: 'Type', key: 'type', width: 11 },
+      { header: 'Value', key: 'value', width: 10 },
+      { header: 'MD', key: 'md', width: 11 },
+      { header: 'Color', key: 'color', width: 11 },
+    ];
+    tis.getRow(1).eachCell(c => {
+      c.font = { bold: true, color: { argb: C.white }};
+      c.fill = solidFill(C.primaryLight);
+      c.alignment = { horizontal: 'center', vertical: 'middle' };
+      c.border = boxBorder;
+    });
+    tis.getRow(1).height = 24;
+
+    state.taskItems.forEach((i, idx) => {
+      const row = tis.addRow({
+        category: i.category, item: i.item, type: i.type.toUpperCase(),
+        value: Number(i.value) || 0, md: Number(fmt(itemMD(i))), color: i.color,
+      });
+      const altFill = idx % 2 === 1 ? solidFill(C.rowAlt) : null;
+      row.eachCell(c => { if (altFill) c.fill = altFill; c.border = boxBorder; });
+      const catCell = row.getCell('category');
+      catCell.fill = solidFill('FF' + (i.color || 'BDD7EE').toUpperCase());
+      catCell.font = { bold: true };
+      const typeCell = row.getCell('type');
+      typeCell.fill = solidFill(i.type === 'fixed' ? C.fixedTag : C.varTag);
+      typeCell.font = { bold: true, size: 10 };
+      typeCell.alignment = { horizontal: 'center' };
+      row.getCell('value').numFmt = '0.0';
+      row.getCell('value').alignment = { horizontal: 'right' };
+      row.getCell('md').numFmt = '0.00';
+      row.getCell('md').alignment = { horizontal: 'right' };
+    });
+    const tiTotal = tis.addRow({ category: 'TOTAL', item: '', type: '', value: '', md: Number(fmt(grandTotal())), color: '' });
+    tiTotal.eachCell(c => {
+      c.font = { bold: true, color: { argb: C.white }};
+      c.fill = solidFill(C.primary);
+      c.border = boxBorder;
+    });
+    tiTotal.getCell('md').numFmt = '0.00';
+    tiTotal.getCell('md').alignment = { horizontal: 'right' };
+    tis.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 6 }};
+    tis.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // ============ Timeline (Gantt with groups) ============
+    const tl = wb.addWorksheet('Timeline', { properties: { tabColor: { argb: 'FFA9D08E' }}});
+    const { rows: gRows, cap: capMD, totalMD } = buildGanttRows();
+    const weeks = Math.max(16, Math.ceil(totalMD / capMD) + 2);
+
+    const hdr = ['Category', 'Task Item', 'Type', 'MD', 'Start Wk', 'End Wk'];
+    for (let w = 1; w <= weeks; w++) hdr.push('W' + w);
+    tl.addRow(hdr);
+    tl.getRow(1).eachCell(c => {
+      c.font = { bold: true, color: { argb: C.white }, size: 10 };
+      c.fill = solidFill(C.primaryLight);
+      c.alignment = { horizontal: 'center', vertical: 'middle' };
+      c.border = boxBorder;
+    });
+    tl.getRow(1).height = 22;
+
+    const groups = groupByCategory(gRows);
+    for (const [cat, items] of groups) {
+      const summary = categorySummary(items);
+      const catFill = catColor(cat);
+      // Category summary row
+      const catVals = [cat, `(${items.length} task items)`, '', Number(fmt(summary.md)), summary.startWk || '', summary.endWk || ''];
+      for (let w = 1; w <= weeks; w++) {
+        let agg = 0;
+        for (const r of items) agg += ganttWeekMD(r, w, capMD);
+        catVals.push(agg > 0.001 ? Number(fmt(agg, 1)) : '');
+      }
+      const catRow = tl.addRow(catVals);
+      catRow.font = { bold: true };
+      catRow.fill = solidFill('FFF1F5F9');
+      catRow.getCell(1).fill = solidFill(catFill);
+      catRow.getCell(4).numFmt = '0.00';
+      catRow.getCell(4).alignment = { horizontal: 'right' };
+      catRow.getCell(2).font = { italic: true, color: { argb: C.muted }};
+      for (let w = 1; w <= weeks; w++) {
+        const cell = catRow.getCell(6 + w);
+        if (cell.value !== '' && cell.value !== null) {
+          cell.fill = solidFill(catFill);
+          cell.numFmt = '0.0';
+          cell.alignment = { horizontal: 'center' };
+          cell.font = { bold: true, size: 9 };
+        }
+      }
+
+      // Child item rows (Excel outline/group collapsible)
+      for (const r of items) {
+        const itemFill = 'FF' + (r.color || 'BDD7EE').toUpperCase();
+        const itemVals = ['', r.item, r.virtual ? 'VIRTUAL' : '', Number(fmt(r.md)), r.startWk || '', r.endWk || ''];
+        for (let w = 1; w <= weeks; w++) {
+          const v = ganttWeekMD(r, w, capMD);
+          itemVals.push(v > 0.001 ? Number(fmt(v, 1)) : '');
+        }
+        const itemRow = tl.addRow(itemVals);
+        itemRow.outlineLevel = 1;
+        itemRow.getCell(2).alignment = { indent: 1 };
+        itemRow.getCell(2).font = { color: { argb: C.primary }};
+        itemRow.getCell(3).alignment = { horizontal: 'center' };
+        itemRow.getCell(3).font = { size: 9, italic: r.virtual };
+        itemRow.getCell(4).numFmt = '0.00';
+        itemRow.getCell(4).alignment = { horizontal: 'right' };
+        for (let w = 1; w <= weeks; w++) {
+          const cell = itemRow.getCell(6 + w);
+          if (cell.value !== '' && cell.value !== null) {
+            cell.fill = solidFill(itemFill);
+            cell.numFmt = '0.0';
+            cell.alignment = { horizontal: 'center' };
+            cell.font = { size: 9 };
+          }
+        }
+      }
+    }
+
+    // Weekly total row
+    const weekTotals = new Array(weeks).fill(0);
+    for (const r of gRows) for (let w = 1; w <= weeks; w++) weekTotals[w - 1] += ganttWeekMD(r, w, capMD);
+    const totVals = ['Weekly MD Total', '', '', Number(fmt(totalMD)), '', ''];
+    for (let w = 0; w < weeks; w++) totVals.push(weekTotals[w] > 0.001 ? Number(fmt(weekTotals[w], 1)) : '');
+    const totRow = tl.addRow(totVals);
+    totRow.eachCell(c => {
+      c.font = { bold: true, color: { argb: C.white }};
+      c.fill = solidFill(C.primary);
+      c.alignment = { horizontal: 'center' };
+    });
+    totRow.getCell(4).numFmt = '0.00';
+    totRow.getCell(4).alignment = { horizontal: 'right' };
+
+    tl.getColumn(1).width = 30;
+    tl.getColumn(2).width = 44;
+    tl.getColumn(3).width = 10;
+    tl.getColumn(4).width = 8;
+    tl.getColumn(5).width = 9;
+    tl.getColumn(6).width = 9;
+    for (let w = 1; w <= weeks; w++) tl.getColumn(6 + w).width = 5.2;
+    tl.views = [{ state: 'frozen', xSplit: 6, ySplit: 1, showOutlineSymbols: true }];
+    tl.properties.outlineLevelRow = 1;
+
+    // Save
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fname = `Testimate_${(state.project.name || 'Project').replace(/[^A-Za-z0-9_-]/g, '_')}.xlsx`;
+    a.href = url; a.download = fname; a.click();
+    URL.revokeObjectURL(url);
+    toast('Saved styled Excel: ' + fname, 'success');
+  } catch (err) { console.error(err); toast('Export failed: ' + err.message, 'error'); }
+}
+
+function exportCSV() {
+  try {
+    const rows = [['Section', 'Key', 'Value']];
+    rows.push(['Project', 'Project Name', state.project.name]);
+    rows.push(['Project', 'Resources', state.project.resources]);
+    rows.push(['Project', 'Working Days per Month', state.project.wdPerMonth]);
+    rows.push(['Rates', 'Simple', state.rates.simple]);
+    rows.push(['Rates', 'Medium', state.rates.medium]);
+    rows.push(['Rates', 'Complex', state.rates.complex]);
+    rows.push(['Rates', 'Clustering %', state.rates.clustering]);
+    rows.push(['Rates', 'Buffer %', state.rates.buffer]);
+    rows.push(['Advanced', 'Test Data %', state.advanced.testDataPct]);
+    rows.push(['Advanced', 'Platform Matrix', state.advanced.platformMatrix]);
+    rows.push(['Advanced', 'Learning Curve %', state.advanced.learningCurvePct]);
+    rows.push(['Advanced', 'Framework Uplift %', state.advanced.frameworkUpliftPct]);
+    rows.push(['Advanced', 'Maintenance % / year', state.advanced.maintenancePctPerYear]);
+    rows.push(['Advanced', 'Maintenance Months', state.advanced.maintenanceMonths]);
+    rows.push(['Advanced', 'PERT Enabled', state.advanced.pertEnabled]);
+    rows.push(['Advanced', 'PERT Best %', state.advanced.pertBestDelta]);
+    rows.push(['Advanced', 'PERT Worst %', state.advanced.pertWorstDelta]);
+    rows.push(['Summary', 'Grand Total MD', fmt(grandTotal())]);
+    rows.push(['Summary', 'Calendar Months', fmt(totalMonths())]);
+    rows.push([]);
+    rows.push(['--- TEST CASES ---']);
+    rows.push(['Name', 'Steps', 'Complexity', 'Complexity Override', 'Rate', 'Variable MD', 'Notes']);
+    state.testCases.forEach(tc => {
+      const override = tc.complexity && ['Simple', 'Medium', 'Complex'].includes(tc.complexity) ? tc.complexity : '';
+      rows.push([tc.name, tc.steps, getTCComplexity(tc), override, getTCRate(tc), fmt(tcMD(tc)), tc.notes || '']);
+    });
+    rows.push([]);
+    rows.push(['--- TASK ITEMS ---']);
+    rows.push(['Category', 'Task Item', 'Type', 'Value', 'MD', 'Color']);
+    state.taskItems.forEach(i => {
+      rows.push([i.category, i.item, i.type, i.value, fmt(itemMD(i)), i.color]);
+    });
+    const csv = rows.map(r => r.map(c => {
+      const s = String(c === undefined || c === null ? '' : c);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fname = `Testimate_${(state.project.name || 'Project').replace(/[^A-Za-z0-9_-]/g, '_')}.csv`;
+    a.href = url; a.download = fname; a.click();
+    URL.revokeObjectURL(url);
+    toast('Saved CSV: ' + fname, 'success');
+  } catch (err) { console.error(err); toast('CSV export failed: ' + err.message, 'error'); }
+}
+
+document.getElementById('btnExportExcel').addEventListener('click', exportExcel);
+document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+
+function applyWorkbookToState(wb, targetState) {
+  targetState = targetState || state;
+  let loaded = { tc: 0, items: 0, summary: false };
+
+  if (wb.SheetNames.includes('Summary')) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['Summary'], { header: 1, defval: '' });
+    rows.forEach(r => {
+      const key = String(r[0] || '').trim();
+      const val = r[1];
+      if (key === 'Project Name') targetState.project.name = val;
+      else if (key === 'Resources (# engineers)' || key === 'Resources') targetState.project.resources = Number(val) || 1;
+      else if (key === 'Working Days per Month') targetState.project.wdPerMonth = Number(val) || 20;
+      else if (key === 'Simple rate (MD/step)') targetState.rates.simple = Number(val) || 0;
+      else if (key === 'Medium rate (MD/step)') targetState.rates.medium = Number(val) || 0;
+      else if (key === 'Complex rate (MD/step)') targetState.rates.complex = Number(val) || 0;
+      else if (key === 'Clustering Discount %') targetState.rates.clustering = Number(val) || 0;
+      else if (key === 'Risk/Buffer %') targetState.rates.buffer = Number(val) || 0;
+      else if (key === 'Test Data Preparation %') targetState.advanced.testDataPct = Number(val) || 0;
+      else if (key === 'Platform Matrix Multiplier') targetState.advanced.platformMatrix = Number(val) || 1;
+      else if (key === 'Learning Curve %') targetState.advanced.learningCurvePct = Number(val) || 0;
+      else if (key === 'Framework Setup Uplift %') targetState.advanced.frameworkUpliftPct = Number(val) || 0;
+      else if (key === 'Maintenance % per year') targetState.advanced.maintenancePctPerYear = Number(val) || 0;
+      else if (key === 'Maintenance Horizon (months)') targetState.advanced.maintenanceMonths = Number(val) || 0;
+      else if (key === 'PERT Enabled') targetState.advanced.pertEnabled = String(val).toUpperCase() === 'TRUE';
+      else if (key === 'PERT Best-case Delta %') targetState.advanced.pertBestDelta = Number(val) || 0;
+      else if (key === 'PERT Worst-case Delta %') targetState.advanced.pertWorstDelta = Number(val) || 0;
+    });
+    loaded.summary = true;
+  }
+
+  if (wb.SheetNames.includes('TestCases')) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['TestCases'], { defval: '' });
+    targetState.testCases = rows.map(r => {
+      const ovr = String(r['Complexity Override'] || r.ComplexityOverride || '').trim();
+      const validOvr = ['Simple', 'Medium', 'Complex'].includes(ovr) ? ovr : null;
+      return {
+        name: String(r.Name || r.name || ''),
+        steps: Number(r.Steps || r.steps || 0),
+        rate: r['Rate (MD/step)'] !== '' && r['Rate (MD/step)'] !== undefined ? Number(r['Rate (MD/step)']) : null,
+        notes: String(r.Notes || r.notes || ''),
+        complexity: validOvr,
+      };
+    });
+    loaded.tc = targetState.testCases.length;
+  }
+
+  if (wb.SheetNames.includes('TaskItems')) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['TaskItems'], { defval: '' });
+    targetState.taskItems = rows.map(r => ({
+      category: String(r.Category || r.category || 'Uncategorized'),
+      item: String(r['Task Item'] || r.TaskItem || r.item || ''),
+      type: (String(r.Type || r.type || 'fixed').toLowerCase() === 'variable') ? 'variable' : 'fixed',
+      value: Number(r.Value || r.value || 0),
+      color: (r.Color || r.color || 'BDD7EE').toString().replace('#', '').toUpperCase(),
+    }));
+    loaded.items = targetState.taskItems.length;
+  }
+  return loaded;
+}
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const loaded = applyWorkbookToState(wb);
+      if (!loaded.tc && !loaded.items && !loaded.summary) {
+        throw new Error('No recognizable sheets found. Expected: Summary, TestCases, TaskItems.');
+      }
+      renderAll();
+      toast(`Loaded: ${loaded.tc} test cases, ${loaded.items} task items`, 'success');
+    } catch (err) { console.error(err); toast('Load failed: ' + err.message, 'error'); }
+    finally { document.getElementById('fileInput').value = ''; }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function toast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (kind || '');
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ============================================================
+// UNIT TEST SUITE
+// ============================================================
+function approxEq(a, b, eps) { return Math.abs(Number(a) - Number(b)) < (eps || 0.0001); }
+function makeTestState(overrides) {
+  const s = clone(DEFAULT_STATE);
+  Object.assign(s.project, (overrides && overrides.project) || {});
+  Object.assign(s.rates, (overrides && overrides.rates) || {});
+  Object.assign(s.advanced, (overrides && overrides.advanced) || {});
+  if (overrides && overrides.testCases) s.testCases = overrides.testCases;
+  if (overrides && overrides.taskItems) s.taskItems = overrides.taskItems;
+  return s;
+}
+
+const TESTS = [
+  // ---------- classify ----------
+  { name: 'classify(0) returns Simple', run: () => {
+    if (classify(0) !== 'Simple') throw new Error('expected Simple got ' + classify(0));
+  }},
+  { name: 'classify(1) returns Simple', run: () => {
+    if (classify(1) !== 'Simple') throw new Error(classify(1));
+  }},
+  { name: 'classify(50) returns Simple (boundary)', run: () => {
+    if (classify(50) !== 'Simple') throw new Error(classify(50));
+  }},
+  { name: 'classify(51) returns Medium (boundary)', run: () => {
+    if (classify(51) !== 'Medium') throw new Error(classify(51));
+  }},
+  { name: 'classify(150) returns Medium (boundary)', run: () => {
+    if (classify(150) !== 'Medium') throw new Error(classify(150));
+  }},
+  { name: 'classify(151) returns Complex (boundary)', run: () => {
+    if (classify(151) !== 'Complex') throw new Error(classify(151));
+  }},
+  { name: 'classify(1000) returns Complex', run: () => {
+    if (classify(1000) !== 'Complex') throw new Error(classify(1000));
+  }},
+
+  // ---------- getTCRate ----------
+  { name: 'getTCRate returns Simple rate for small TC', run: () => {
+    const s = makeTestState({ rates: { simple: 0.25, medium: 0.20, complex: 0.15 } });
+    if (getTCRate({ steps: 30, rate: null }, s) !== 0.25) throw new Error('got ' + getTCRate({ steps: 30, rate: null }, s));
+  }},
+  { name: 'getTCRate respects per-TC override', run: () => {
+    const s = makeTestState();
+    if (getTCRate({ steps: 30, rate: 0.1 }, s) !== 0.1) throw new Error('override ignored');
+  }},
+  { name: 'getTCRate returns Complex rate for 200 steps', run: () => {
+    const s = makeTestState({ rates: { simple: 0.25, medium: 0.20, complex: 0.15 } });
+    if (getTCRate({ steps: 200, rate: null }, s) !== 0.15) throw new Error();
+  }},
+
+  // ---------- complexity override ----------
+  { name: 'getTCComplexity returns auto classification when no override', run: () => {
+    if (getTCComplexity({ steps: 30, complexity: null }) !== 'Simple') throw new Error();
+    if (getTCComplexity({ steps: 100 }) !== 'Medium') throw new Error();
+    if (getTCComplexity({ steps: 200 }) !== 'Complex') throw new Error();
+  }},
+  { name: 'getTCComplexity respects manual override', run: () => {
+    if (getTCComplexity({ steps: 30, complexity: 'Complex' }) !== 'Complex') throw new Error();
+    if (getTCComplexity({ steps: 200, complexity: 'Simple' }) !== 'Simple') throw new Error();
+  }},
+  { name: 'getTCComplexity ignores invalid override', run: () => {
+    if (getTCComplexity({ steps: 30, complexity: 'Foo' }) !== 'Simple') throw new Error();
+    if (getTCComplexity({ steps: 30, complexity: '' }) !== 'Simple') throw new Error();
+  }},
+  { name: 'getTCRate uses overridden complexity rate', run: () => {
+    const s = makeTestState({ rates: { simple: 0.25, medium: 0.20, complex: 0.15 } });
+    // 30 steps would normally be Simple (0.25), but overridden to Complex -> 0.15
+    if (getTCRate({ steps: 30, rate: null, complexity: 'Complex' }, s) !== 0.15) throw new Error();
+  }},
+  { name: 'Explicit rate override beats complexity override', run: () => {
+    const s = makeTestState();
+    if (getTCRate({ steps: 30, rate: 0.05, complexity: 'Complex' }, s) !== 0.05) throw new Error();
+  }},
+  { name: 'tcMD honors complexity override', run: () => {
+    const s = makeTestState({ rates: { simple: 0.25, medium: 0.20, complex: 0.15 } });
+    // 30 steps as Complex -> 30 * 0.15 = 4.5
+    if (!approxEq(tcMD({ steps: 30, rate: null, complexity: 'Complex' }, s), 4.5)) throw new Error();
+  }},
+
+  // ---------- tcMD ----------
+  { name: 'tcMD = steps * rate', run: () => {
+    const s = makeTestState({ rates: { simple: 0.25 } });
+    if (!approxEq(tcMD({ steps: 30, rate: null }, s), 7.5)) throw new Error(tcMD({ steps: 30, rate: null }, s));
+  }},
+
+  // ---------- variableGross ----------
+  { name: 'variableGross sums all TCs', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25, medium: 0.20, complex: 0.15 },
+      testCases: [{ steps: 30, rate: null }, { steps: 100, rate: null }],
+    });
+    if (!approxEq(variableGross(s), 7.5 + 20)) throw new Error(variableGross(s));
+  }},
+  { name: 'variableGross with empty TCs = 0', run: () => {
+    const s = makeTestState({ testCases: [] });
+    if (variableGross(s) !== 0) throw new Error();
+  }},
+
+  // ---------- multipliers ----------
+  { name: 'platform matrix multiplier scales variable', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25 },
+      testCases: [{ steps: 100, rate: 0.2 }],
+      advanced: { platformMatrix: 2 },
+    });
+    if (!approxEq(variableAfterMultipliers(s), 100 * 0.2 * 2)) throw new Error(variableAfterMultipliers(s));
+  }},
+  { name: 'learning curve adds %', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 100, rate: 0.2 }],
+      advanced: { learningCurvePct: 20 },
+    });
+    if (!approxEq(variableAfterMultipliers(s), 20 * 1.2)) throw new Error(variableAfterMultipliers(s));
+  }},
+  { name: 'test data uplift adds %', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 100, rate: 0.2 }],
+      advanced: { testDataPct: 15 },
+    });
+    if (!approxEq(variableAfterMultipliers(s), 20 * 1.15)) throw new Error();
+  }},
+  { name: 'multipliers compound (platform x learning x data)', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 100, rate: 0.2 }],
+      advanced: { platformMatrix: 2, learningCurvePct: 10, testDataPct: 15 },
+    });
+    const expected = 20 * 2 * 1.10 * 1.15;
+    if (!approxEq(variableAfterMultipliers(s), expected)) throw new Error(variableAfterMultipliers(s) + ' vs ' + expected);
+  }},
+
+  // ---------- variableNet ----------
+  { name: 'variableNet equals gross when no discount/buffer/multiplier', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25, clustering: 0, buffer: 0 },
+      testCases: [{ steps: 30, rate: null }],
+    });
+    if (!approxEq(variableNet(s), variableGross(s))) throw new Error();
+  }},
+  { name: 'clustering reduces variable net', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25, clustering: 20, buffer: 0 },
+      testCases: [{ steps: 30, rate: null }],
+    });
+    if (!approxEq(variableNet(s), 7.5 * 0.80)) throw new Error(variableNet(s));
+  }},
+  { name: 'buffer increases variable net', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25, clustering: 0, buffer: 10 },
+      testCases: [{ steps: 30, rate: null }],
+    });
+    if (!approxEq(variableNet(s), 7.5 * 1.10)) throw new Error();
+  }},
+  { name: 'clustering applied before buffer', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25, clustering: 20, buffer: 10 },
+      testCases: [{ steps: 100, rate: 0.2 }],
+    });
+    if (!approxEq(variableNet(s), 20 * 0.80 * 1.10)) throw new Error(variableNet(s));
+  }},
+
+  // ---------- fixedTotal ----------
+  { name: 'fixedTotal sums only fixed items', run: () => {
+    const s = makeTestState({ taskItems: [
+      { category: 'P', item: 'a', type: 'fixed', value: 5, color: '' },
+      { category: 'P', item: 'b', type: 'variable', value: 10, color: '' },
+      { category: 'P', item: 'c', type: 'fixed', value: 3, color: '' },
+    ]});
+    if (fixedTotal(s) !== 8) throw new Error(fixedTotal(s));
+  }},
+  { name: 'fixedDevEnvBaseline picks only Development Environment fixed', run: () => {
+    const s = makeTestState({ taskItems: [
+      { category: 'Development Environment', item: 'a', type: 'fixed', value: 5, color: '' },
+      { category: 'Development Environment', item: 'b', type: 'fixed', value: 2, color: '' },
+      { category: 'Preparation and Planning', item: 'c', type: 'fixed', value: 3, color: '' },
+      { category: 'Test Script Development', item: 'd', type: 'variable', value: 20, color: '' },
+    ]});
+    if (fixedDevEnvBaseline(s) !== 7) throw new Error(fixedDevEnvBaseline(s));
+  }},
+
+  // ---------- itemMD ----------
+  { name: 'itemMD for fixed returns value', run: () => {
+    const s = makeTestState();
+    const it = { type: 'fixed', value: 5 };
+    if (itemMD(it, s) !== 5) throw new Error();
+  }},
+  { name: 'itemMD for variable returns proportional share of variableNet', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25 },
+      testCases: [{ steps: 40, rate: null }], // 40 * 0.25 = 10
+      taskItems: [
+        { category: 'X', item: 'a', type: 'variable', value: 3, color: '' },
+        { category: 'X', item: 'b', type: 'variable', value: 1, color: '' },
+      ],
+    });
+    // variableNet = 10; item a = 10 * 3/4 = 7.5
+    if (!approxEq(itemMD({ type: 'variable', value: 3 }, s), 7.5)) throw new Error(itemMD({ type: 'variable', value: 3 }, s));
+    if (!approxEq(itemMD({ type: 'variable', value: 1 }, s), 2.5)) throw new Error();
+  }},
+  { name: 'itemMD variable returns 0 when prop sum is 0', run: () => {
+    const s = makeTestState({
+      taskItems: [{ category: 'X', item: 'a', type: 'fixed', value: 5, color: '' }],
+      testCases: [{ steps: 100, rate: 0.2 }],
+    });
+    if (itemMD({ type: 'variable', value: 3 }, s) !== 0) throw new Error();
+  }},
+
+  // ---------- frameworkUpliftMD ----------
+  { name: 'framework uplift adds % of Dev Env baseline', run: () => {
+    const s = makeTestState({
+      advanced: { frameworkUpliftPct: 50 },
+      taskItems: [{ category: 'Development Environment', item: 'a', type: 'fixed', value: 5, color: '' }],
+    });
+    if (!approxEq(frameworkUpliftMD(s), 2.5)) throw new Error(frameworkUpliftMD(s));
+  }},
+  { name: 'framework uplift is 0 when pct is 0', run: () => {
+    const s = makeTestState({ advanced: { frameworkUpliftPct: 0 } });
+    if (frameworkUpliftMD(s) !== 0) throw new Error();
+  }},
+
+  // ---------- maintenanceMD ----------
+  { name: 'maintenance 0 when months = 0', run: () => {
+    const s = makeTestState({ advanced: { maintenancePctPerYear: 25, maintenanceMonths: 0 }});
+    if (maintenanceMD(s) !== 0) throw new Error();
+  }},
+  { name: 'maintenance 0 when pct = 0', run: () => {
+    const s = makeTestState({ advanced: { maintenancePctPerYear: 0, maintenanceMonths: 12 }});
+    if (maintenanceMD(s) !== 0) throw new Error();
+  }},
+  { name: 'maintenance = devEffort × pct × months/12', run: () => {
+    const s = makeTestState({
+      rates: { simple: 0.25 },
+      testCases: [{ steps: 40, rate: null }], // gross 10, net 10
+      taskItems: [{ category: 'Preparation and Planning', item: 'a', type: 'fixed', value: 10, color: '' }],
+      advanced: { maintenancePctPerYear: 30, maintenanceMonths: 12 },
+    });
+    // devEffort = variableNet(10) + fixed(10) + framework(0) = 20; maint = 20 * 0.30 * 12/12 = 6
+    if (!approxEq(maintenanceMD(s), 6)) throw new Error(maintenanceMD(s));
+  }},
+  { name: 'maintenance scales with horizon', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 40, rate: 0.25 }],
+      taskItems: [{ category: 'P', item: 'a', type: 'fixed', value: 10, color: '' }],
+      advanced: { maintenancePctPerYear: 30, maintenanceMonths: 24 },
+    });
+    // devEffort = 10 + 10 = 20; maint = 20 * 0.30 * 24/12 = 12
+    if (!approxEq(maintenanceMD(s), 12)) throw new Error(maintenanceMD(s));
+  }},
+
+  // ---------- grandTotal ----------
+  { name: 'grandTotal = fixed + variable net + framework + maintenance', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 40, rate: 0.25 }],
+      taskItems: [
+        { category: 'Development Environment', item: 'dev', type: 'fixed', value: 4, color: '' },
+        { category: 'Test Script Development', item: 'tsd', type: 'variable', value: 1, color: '' },
+      ],
+      advanced: {
+        frameworkUpliftPct: 50,
+        maintenancePctPerYear: 0,
+        maintenanceMonths: 0,
+      },
+    });
+    // variableNet = 10, fixed = 4, framework = 4*0.5 = 2, maint = 0 -> total = 16
+    if (!approxEq(grandTotal(s), 16)) throw new Error(grandTotal(s));
+  }},
+
+  // ---------- duration ----------
+  { name: 'totalMonths = grandTotal / (wd*res)', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 400, rate: 0.25 }],  // gross 100
+      taskItems: [],
+      project: { resources: 2, wdPerMonth: 20 },
+    });
+    // grandTotal = variableNet(100) + 0 = 100; months = 100 / (20*2) = 2.5
+    if (!approxEq(totalMonths(s), 2.5)) throw new Error(totalMonths(s));
+  }},
+  { name: 'capacity = 5 * resources', run: () => {
+    const s = makeTestState({ project: { resources: 3 }});
+    if (capacity(s) !== 15) throw new Error();
+  }},
+
+  // ---------- PERT ----------
+  { name: 'PERT best = GT * (1 + bestDelta/100)', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 400, rate: 0.25 }],
+      taskItems: [],
+      advanced: { pertBestDelta: -20, pertWorstDelta: 30 },
+    });
+    // GT = 100
+    if (!approxEq(pertBest(s), 100 * 0.80)) throw new Error(pertBest(s));
+  }},
+  { name: 'PERT worst = GT * (1 + worstDelta/100)', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 400, rate: 0.25 }],
+      taskItems: [],
+      advanced: { pertWorstDelta: 30 },
+    });
+    if (!approxEq(pertWorst(s), 100 * 1.30)) throw new Error();
+  }},
+  { name: 'PERT expected = (best + 4E + worst) / 6', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 400, rate: 0.25 }],
+      taskItems: [],
+      advanced: { pertBestDelta: -20, pertWorstDelta: 40 },
+    });
+    // E=100, best=80, worst=140; PERT E = (80 + 400 + 140) / 6 = 103.33
+    if (!approxEq(pertExpected(s), (80 + 400 + 140) / 6)) throw new Error(pertExpected(s));
+  }},
+
+  // ---------- Gantt ----------
+  { name: 'Gantt start/end weeks match cumulative formula', run: () => {
+    const s = makeTestState({
+      project: { resources: 1 },
+      testCases: [{ steps: 200, rate: 0.25 }],  // variableNet = 50
+      taskItems: [
+        { category: 'P', item: 'a', type: 'fixed', value: 5, color: 'aaa' },       // MD=5, cumStart 0-5 -> W1-W1
+        { category: 'P', item: 'b', type: 'fixed', value: 3, color: 'bbb' },       // MD=3, cumStart 5-8 -> W2-W2
+        { category: 'P', item: 'c', type: 'variable', value: 1, color: 'ccc' },    // MD=50 all variable, cum 8-58 -> W2-W12
+      ],
+      advanced: { frameworkUpliftPct: 0, maintenancePctPerYear: 0, maintenanceMonths: 0 },
+    });
+    const { rows } = buildGanttRows(s);
+    if (rows[0].startWk !== 1 || rows[0].endWk !== 1) throw new Error('row0 ' + rows[0].startWk + '-' + rows[0].endWk);
+    if (rows[1].startWk !== 2 || rows[1].endWk !== 2) throw new Error('row1 ' + rows[1].startWk + '-' + rows[1].endWk);
+    if (rows[2].startWk !== 2 || rows[2].endWk !== 12) throw new Error('row2 ' + rows[2].startWk + '-' + rows[2].endWk);
+  }},
+  { name: 'ganttWeekMD returns correct slice', run: () => {
+    // row spans 8-18 MD; cap 5 -> weeks 2-4; W2 has 2 MD (8-10), W3 has 5, W4 has 3
+    const row = { md: 10, startMD: 8, endMD: 18 };
+    if (!approxEq(ganttWeekMD(row, 2, 5), 2)) throw new Error();
+    if (!approxEq(ganttWeekMD(row, 3, 5), 5)) throw new Error();
+    if (!approxEq(ganttWeekMD(row, 4, 5), 3)) throw new Error();
+    if (ganttWeekMD(row, 1, 5) !== 0) throw new Error();
+    if (ganttWeekMD(row, 5, 5) !== 0) throw new Error();
+  }},
+  { name: 'Gantt total MD sums to grandTotal', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 200, rate: 0.25 }],
+      taskItems: [
+        { category: 'P', item: 'a', type: 'fixed', value: 5, color: '' },
+        { category: 'P', item: 'b', type: 'variable', value: 1, color: '' },
+      ],
+      advanced: { frameworkUpliftPct: 0, maintenancePctPerYear: 20, maintenanceMonths: 12 },
+    });
+    const { totalMD } = buildGanttRows(s);
+    if (!approxEq(totalMD, grandTotal(s))) throw new Error(totalMD + ' vs ' + grandTotal(s));
+  }},
+  { name: 'Framework uplift appears as virtual Gantt row when > 0', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 40, rate: 0.25 }],
+      taskItems: [{ category: 'Development Environment', item: 'a', type: 'fixed', value: 4, color: '' }],
+      advanced: { frameworkUpliftPct: 50 },
+    });
+    const { rows } = buildGanttRows(s);
+    if (!rows.some(r => r.virtual && /framework/i.test(r.item))) throw new Error('no framework virtual row');
+  }},
+  { name: 'Maintenance appears as virtual Gantt row when > 0', run: () => {
+    const s = makeTestState({
+      testCases: [{ steps: 40, rate: 0.25 }],
+      taskItems: [{ category: 'P', item: 'a', type: 'fixed', value: 10, color: '' }],
+      advanced: { maintenancePctPerYear: 25, maintenanceMonths: 12 },
+    });
+    const { rows } = buildGanttRows(s);
+    if (!rows.some(r => r.virtual && /maintenance/i.test(r.item))) throw new Error('no maintenance virtual row');
+  }},
+
+  // ---------- Grouping / Filter (for collapsible Gantt) ----------
+  { name: 'groupByCategory preserves insertion order', run: () => {
+    const rows = [
+      { category: 'A', item: 'a1', md: 1 },
+      { category: 'B', item: 'b1', md: 1 },
+      { category: 'A', item: 'a2', md: 1 },
+      { category: 'C', item: 'c1', md: 1 },
+    ];
+    const g = groupByCategory(rows);
+    const keys = [...g.keys()];
+    if (keys.join(',') !== 'A,B,C') throw new Error('order: ' + keys.join(','));
+    if (g.get('A').length !== 2) throw new Error('A count');
+    if (g.get('A')[0].item !== 'a1' || g.get('A')[1].item !== 'a2') throw new Error('A order');
+  }},
+  { name: 'categorySummary aggregates MD, min start, max end', run: () => {
+    const items = [
+      { md: 5, startWk: 3, endWk: 5, color: 'FFF' },
+      { md: 2, startWk: 1, endWk: 2, color: 'AAA' },
+      { md: 4, startWk: 4, endWk: 7, color: 'FFF' },
+    ];
+    const s = categorySummary(items);
+    if (s.md !== 11) throw new Error('md ' + s.md);
+    if (s.startWk !== 1) throw new Error('startWk ' + s.startWk);
+    if (s.endWk !== 7) throw new Error('endWk ' + s.endWk);
+    if (s.count !== 3) throw new Error('count');
+  }},
+  { name: 'categorySummary handles items with no weeks (all zero)', run: () => {
+    const items = [{ md: 0, startWk: 0, endWk: 0, color: 'AAA' }];
+    const s = categorySummary(items);
+    if (s.startWk !== 0 || s.endWk !== 0) throw new Error('expected 0/0');
+    if (s.md !== 0) throw new Error('md');
+  }},
+  { name: 'filterMatches case-insensitive substring', run: () => {
+    if (!filterMatches('Test Script Development', 'script')) throw new Error();
+    if (!filterMatches('Test Script Development', 'SCRIPT')) throw new Error();
+    if (filterMatches('Execution', 'script')) throw new Error();
+    if (!filterMatches('any text', '')) throw new Error('empty filter should match');
+    if (!filterMatches('any text', null)) throw new Error('null filter should match');
+  }},
+  { name: 'groupByCategory+filter: only matching categories pass', run: () => {
+    const rows = [
+      { category: 'Preparation and Planning', item: 'requirements review', md: 3 },
+      { category: 'Test Script Development', item: 'Automate scripts', md: 15 },
+      { category: 'Test Execution', item: 'Regression', md: 8 },
+    ];
+    const g = groupByCategory(rows);
+    const passing = [...g.entries()].filter(([cat, items]) =>
+      filterMatches(cat, 'script') || items.some(r => filterMatches(r.item, 'script'))
+    );
+    // Matches: Test Script Development (category match), Preparation (no), Test Execution (no)
+    if (passing.length !== 1) throw new Error('expected 1 group, got ' + passing.length);
+    if (passing[0][0] !== 'Test Script Development') throw new Error('wrong category');
+  }},
+  { name: 'groupByCategory on default state yields 8 groups', run: () => {
+    const s = makeTestState();
+    const { rows } = buildGanttRows(s);
+    const g = groupByCategory(rows);
+    if (g.size !== 8) throw new Error('expected 8, got ' + g.size);
+  }},
+
+  // ---------- Baseline scope sanity ----------
+  { name: 'Default state: 10 test cases, 593 steps', run: () => {
+    if (DEFAULT_STATE.testCases.length !== 10) throw new Error('TC count ' + DEFAULT_STATE.testCases.length);
+    const s = makeTestState();
+    if (totalSteps(s) !== 593) throw new Error('steps = ' + totalSteps(s));
+  }},
+  { name: 'Default state: variable gross uses complexity rates', run: () => {
+    const s = makeTestState();
+    // 6 Simple (8+30+25+20+40+35 = 158 steps), 3 Medium (75+60+120 = 255 steps), 1 Complex (180 steps)
+    // gross = 158*0.25 + 255*0.20 + 180*0.15 = 39.5 + 51 + 27 = 117.5
+    if (!approxEq(variableGross(s), 117.5)) throw new Error(variableGross(s));
+  }},
+  { name: 'Default state: 8 standard phases covered', run: () => {
+    const categories = new Set(DEFAULT_STATE.taskItems.map(i => i.category));
+    const expected = ['Preparation and Planning', 'Environment and Framework Setup', 'Test Design',
+                      'Test Script Development', 'Test Execution', 'Defect Management',
+                      'Reporting and Sign-off', 'Handover and Documentation'];
+    for (const c of expected) if (!categories.has(c)) throw new Error('missing category: ' + c);
+    if (categories.size !== 8) throw new Error('expected 8 categories, got ' + categories.size);
+  }},
+  { name: 'Default state: framework uplift resolves against Environment and Framework Setup', run: () => {
+    const s = makeTestState({ advanced: { frameworkUpliftPct: 100 }});
+    // Baseline Dev Env items are: Framework architecture (3) + Tooling (2) + CI/CD (2) = 7
+    if (!approxEq(fixedDevEnvBaseline(s), 7)) throw new Error('baseline=' + fixedDevEnvBaseline(s));
+    if (!approxEq(frameworkUpliftMD(s), 7)) throw new Error('uplift=' + frameworkUpliftMD(s));
+  }},
+
+  // ---------- Export/Import round trip ----------
+  { name: 'Export to Excel and re-import preserves config and data', run: () => {
+    const s = makeTestState({
+      project: { name: 'RT', resources: 2, wdPerMonth: 22 },
+      rates: { simple: 0.3, medium: 0.2, complex: 0.1, clustering: 15, buffer: 10 },
+      advanced: { testDataPct: 10, platformMatrix: 1.5, learningCurvePct: 20,
+                  frameworkUpliftPct: 30, maintenancePctPerYear: 25, maintenanceMonths: 24,
+                  pertEnabled: true, pertBestDelta: -15, pertWorstDelta: 25 },
+      testCases: [{ name: 'X1', steps: 25, rate: null, notes: 'n' }],
+      taskItems: [{ category: 'C', item: 'I', type: 'variable', value: 5, color: 'AAAAAA' }],
+    });
+    // Replicate export logic into in-memory workbook
+    const wb = XLSX.utils.book_new();
+    const summary = [
+      ['PROJECT'],
+      ['Project Name', s.project.name],
+      ['Resources (# engineers)', s.project.resources],
+      ['Working Days per Month', s.project.wdPerMonth],
+      ['Simple rate (MD/step)', s.rates.simple],
+      ['Medium rate (MD/step)', s.rates.medium],
+      ['Complex rate (MD/step)', s.rates.complex],
+      ['Clustering Discount %', s.rates.clustering],
+      ['Risk/Buffer %', s.rates.buffer],
+      ['Test Data Preparation %', s.advanced.testDataPct],
+      ['Platform Matrix Multiplier', s.advanced.platformMatrix],
+      ['Learning Curve %', s.advanced.learningCurvePct],
+      ['Framework Setup Uplift %', s.advanced.frameworkUpliftPct],
+      ['Maintenance % per year', s.advanced.maintenancePctPerYear],
+      ['Maintenance Horizon (months)', s.advanced.maintenanceMonths],
+      ['PERT Enabled', s.advanced.pertEnabled ? 'TRUE' : 'FALSE'],
+      ['PERT Best-case Delta %', s.advanced.pertBestDelta],
+      ['PERT Worst-case Delta %', s.advanced.pertWorstDelta],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary');
+    const tc = [['Name', 'Steps', 'Complexity', 'Complexity Override', 'Rate (MD/step)', 'Variable MD', 'Notes'],
+                ['X1', 25, 'Complex', 'Complex', 0.3, 7.5, 'n']];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tc), 'TestCases');
+    const ti = [['Category', 'Task Item', 'Type', 'Value', 'MD', 'Color'],
+                ['C', 'I', 'variable', 5, 0, 'AAAAAA']];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ti), 'TaskItems');
+
+    // Re-import into a fresh state
+    const fresh = clone(DEFAULT_STATE);
+    applyWorkbookToState(wb, fresh);
+    if (fresh.project.name !== 'RT') throw new Error('name');
+    if (fresh.project.resources !== 2) throw new Error('resources');
+    if (fresh.rates.simple !== 0.3) throw new Error('simple');
+    if (fresh.advanced.platformMatrix !== 1.5) throw new Error('platform');
+    if (fresh.advanced.pertEnabled !== true) throw new Error('pert');
+    if (fresh.testCases.length !== 1 || fresh.testCases[0].name !== 'X1') throw new Error('tc');
+    if (fresh.testCases[0].complexity !== 'Complex') throw new Error('complexity override not preserved');
+    if (fresh.taskItems.length !== 1 || fresh.taskItems[0].item !== 'I') throw new Error('item');
+  }},
+];
+
+function runTests() {
+  const results = [];
+  for (const t of TESTS) {
+    try { t.run(); results.push({ name: t.name, status: 'PASS' }); }
+    catch (e) { results.push({ name: t.name, status: 'FAIL', err: (e && e.message) || String(e) }); }
+  }
+  const container = document.getElementById('testResults');
+  const pass = results.filter(r => r.status === 'PASS').length;
+  const fail = results.length - pass;
+  const summary = `<div class="test-summary ${fail === 0 ? 'pass' : 'fail'}">
+    ${pass} passed &middot; ${fail} failed &middot; ${results.length} total
+  </div>`;
+  const cases = results.map(r =>
+    `<div class="test-case ${r.status === 'PASS' ? 'pass' : 'fail'}">
+       <span class="status">${r.status}</span>
+       <div class="name">${escapeHtml(r.name)}${r.err ? '<div class="error">' + escapeHtml(r.err) + '</div>' : ''}</div>
+     </div>`
+  ).join('');
+  container.innerHTML = summary + cases;
+  document.getElementById('testModal').classList.add('show');
+  console.log(`Testimate tests: ${pass}/${results.length} passed`);
+}
+
+document.getElementById('btnTests').addEventListener('click', runTests);
+document.getElementById('btnCloseTests').addEventListener('click', () => {
+  document.getElementById('testModal').classList.remove('show');
+});
+document.getElementById('btnRerunTests').addEventListener('click', runTests);
+
+// ============================================================
+// INIT
+// ============================================================
+bindConfig();
+renderAll();
+
+// Auto-run tests if URL has ?test=1
+if (new URLSearchParams(location.search).get('test') === '1') {
+  setTimeout(runTests, 200);
+}
+</script>
+</body>
+</html>
